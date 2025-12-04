@@ -1,6 +1,7 @@
 // frontend/src/App.jsx
 import { useEffect, useRef, useState } from "react";
 import PhaserArena from "./components/PhaserArena";
+import ConnectWallet from "./components/ConnectWallet";
 
 export default function App() {
   const wsRef = useRef(null);
@@ -9,6 +10,21 @@ export default function App() {
   const [logs, setLogs] = useState([]);
   const [inQueue, setInQueue] = useState(false);
   const [currentMatch, setCurrentMatch] = useState(null);
+
+  // auth / user state from ConnectWallet
+  const [user, setUser] = useState(null); // { address, token, user }
+
+  // expose user globally for other scripts (Phaser etc.)
+  useEffect(() => {
+    if (user) {
+      window.currentUser = user;
+    } else {
+      if (window.currentUser) delete window.currentUser;
+    }
+    return () => {
+      if (window.currentUser) delete window.currentUser;
+    };
+  }, [user]);
 
   // Append a timestamped log line, keep last 80 lines
   function log(msg) {
@@ -32,6 +48,14 @@ export default function App() {
       log("Send error");
       return false;
     }
+  }
+
+  // helper to attach lightweight auth to WS payloads
+  function attachAuthPayload(payload) {
+    if (user && user.address) {
+      payload.auth = { address: user.address, token: user.token || null };
+    }
+    return payload;
   }
 
   // Connect logic (idempotent)
@@ -138,6 +162,7 @@ export default function App() {
       if (window.sendInput) delete window.sendInput;
       if (window.handleServerState) delete window.handleServerState;
       if (window.currentMatch) delete window.currentMatch;
+      if (window.currentUser) delete window.currentUser;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -180,7 +205,9 @@ export default function App() {
       log("Socket not open yet — wait for status connected");
       return;
     }
-    const ok = safeSend({ type: "join_queue" });
+    // attach auth info if available
+    const payload = attachAuthPayload({ type: "join_queue" });
+    const ok = safeSend(payload);
     if (ok) {
       setInQueue(true);
       log("Sent join_queue");
@@ -190,7 +217,8 @@ export default function App() {
   // leave queue / cancel
   function leaveQueue() {
     if (!inQueue) return;
-    safeSend({ type: "leave_queue" }); // server may ignore if not implemented
+    const payload = attachAuthPayload({ type: "leave_queue" });
+    safeSend(payload); // server may ignore if not implemented
     setInQueue(false);
     log("Sent leave_queue");
   }
@@ -199,17 +227,41 @@ export default function App() {
   function forfeitMatch() {
     if (!currentMatch) return;
     // tell server you left match (server should handle)
-    safeSend({ type: "forfeit", matchId: currentMatch.matchId });
+    const payload = attachAuthPayload({ type: "forfeit", matchId: currentMatch.matchId });
+    safeSend(payload);
     setCurrentMatch(null);
     if (window.currentMatch) delete window.currentMatch;
     log("Forfeited match (client-side)");
   }
 
+  // Called by ConnectWallet when login/logout happens
+  function handleLogin(info) {
+    if (!info) {
+      setUser(null);
+      log("User logged out");
+      return;
+    }
+    // info: { address, token, user }
+    setUser({ address: info.address, token: info.token, user: info.user });
+    log("User logged in: " + info.address);
+  }
+
   return (
     <div style={{ padding: 20, fontFamily: "system-ui, sans-serif" }}>
-      <h1 style={{ marginBottom: 8 }}>
-        DuelCraft — WS Test {currentMatch ? `(Match: ${currentMatch.matchId.slice(0, 8)})` : ""}
-      </h1>
+      <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+        <h1 style={{ margin: 0 }}>
+          DuelCraft — WS Test {currentMatch ? `(Match: ${currentMatch.matchId.slice(0, 8)})` : ""}
+        </h1>
+        <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+          {/* show connected wallet address if present */}
+          {user ? (
+            <div style={{ fontSize: 13 }}>
+              {user.address.slice(0, 6) + "..." + user.address.slice(-4)}
+            </div>
+          ) : null}
+          <ConnectWallet onLogin={handleLogin} />
+        </div>
+      </header>
 
       {/* controls: positioned above the canvas so clicks reach buttons */}
       <div

@@ -20,6 +20,7 @@ export default function PhaserArena({ match }) {
       width: 800,
       height: 300,
       parent: containerRef.current,
+      audio: { noAudio: true },
       physics: {
         default: "arcade",
         arcade: { gravity: { y: 0 }, debug: false }

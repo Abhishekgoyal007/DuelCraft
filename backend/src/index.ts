@@ -4,11 +4,18 @@ import http from "http";
 import WebSocket, { WebSocketServer } from "ws";
 import dotenv from "dotenv";
 import { createMatchEngine, MatchEngine } from "./matchEngine";
+import cors from "cors";
+import bodyParser from "body-parser";
+import authRouter from "./auth";
 
 dotenv.config();
 
 const app = express();
 app.use(express.json());
+app.use(cors());
+app.use(bodyParser.json());
+
+app.use("/auth", authRouter);   
 
 // Simple CORS for local dev (fixed variable names)
 app.use((req, res, next) => {
