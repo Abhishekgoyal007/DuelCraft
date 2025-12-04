@@ -15,6 +15,8 @@ export type Match = {
   players: [Client, Client];
   state: any;
   tick: number;
+  inputs: Record<string, any>; // latest input per player id
+  startedAt: number;
 };
 
 export class MatchEngine {
@@ -22,7 +24,11 @@ export class MatchEngine {
   clients: Map<string, Client> = new Map();
   queue: string[] = [];
   matches: Map<string, Match> = new Map();
-  tickIntervalMs = 100; // 10 ticks per second
+  tickIntervalMs = 100; // 10 ticks/sec
+  speed = 220; // horizontal speed px/s
+  gravity = 900; // px/s^2
+  jumpVel = 360; // initial jump velocity px/s (upwards)
+  friction = 0.85;
 
   constructor(wss: WebSocket.Server) {
     this.wss = wss;
@@ -36,7 +42,7 @@ export class MatchEngine {
     this.clients.set(id, client);
     console.log(`[matchEngine] client registered: ${id} (total clients: ${this.clients.size})`);
 
-    // send welcome
+    // welcome payload
     socket.send(JSON.stringify({ type: "welcome", id }));
   }
 
@@ -47,7 +53,6 @@ export class MatchEngine {
     const qpos = this.queue.indexOf(id);
     if (qpos >= 0) this.queue.splice(qpos, 1);
     console.log(`[matchEngine] client unregistered: ${id}`);
-    // TODO: handle match removal if player was in a match
   }
 
   handleMessage(socket: WebSocket, msg: any) {
@@ -56,17 +61,17 @@ export class MatchEngine {
     if (!client) return;
 
     client.lastSeen = Date.now();
-
-    // LOG the incoming message for debugging
     try {
-      console.log(`[matchEngine] received from ${id}:`, msg);
-    } catch (e) {
-      console.log("[matchEngine] received malformed message");
-    }
+      // For compact log
+      console.log(`[matchEngine] received from ${id}:`, msg.type || msg);
+    } catch (e) {}
 
     switch (msg.type) {
       case "join_queue":
         this.enqueueClient(client);
+        break;
+      case "leave_queue":
+        this.leaveQueue(client);
         break;
       case "create_private":
         this.createPrivateMatch(client, msg.opponentId);
@@ -74,8 +79,11 @@ export class MatchEngine {
       case "input":
         this.onClientInput(client, msg);
         break;
+      case "forfeit":
+        this.forfeit(client, msg.matchId);
+        break;
       default:
-        socket.send(JSON.stringify({ type: "error", message: "unknown type" }));
+        client.socket.send(JSON.stringify({ type: "error", message: "unknown type" }));
     }
   }
 
@@ -84,6 +92,14 @@ export class MatchEngine {
     if (!this.queue.includes(client.id)) this.queue.push(client.id);
     console.log(`[matchEngine] enqueue: ${client.id}. queue length=${this.queue.length}`);
     this.tryMatchFromQueue();
+  }
+
+  leaveQueue(client: Client) {
+    const idx = this.queue.indexOf(client.id);
+    if (idx >= 0) {
+      this.queue.splice(idx, 1);
+      console.log(`[matchEngine] ${client.id} left queue`);
+    }
   }
 
   tryMatchFromQueue() {
@@ -111,40 +127,177 @@ export class MatchEngine {
     a.status = "in_match";
     b.status = "in_match";
     const id = uuidv4();
-    const match: Match = { id, players: [a, b], state: this.initialState(), tick: 0 };
+
+    // initial positions (left / right)
+    const leftX = 120;
+    const rightX = 680;
+    const groundY = 250; // y coordinate representing ground level
+
+    const state = {
+      arena: { width: 800, height: 300, groundY },
+      players: {
+        [a.id]: { x: leftX, y: groundY, vx: 0, vy: 0, hp: 100, grounded: true },
+        [b.id]: { x: rightX, y: groundY, vx: 0, vy: 0, hp: 100, grounded: true }
+      }
+    };
+
+    const match: Match = {
+      id,
+      players: [a, b],
+      state,
+      tick: 0,
+      inputs: {},
+      startedAt: Date.now()
+    };
+
     this.matches.set(id, match);
     console.log(`[matchEngine] match created ${id} between ${a.id} and ${b.id}`);
 
     // notify players
     const payload = { type: "match_start", matchId: id, players: [a.id, b.id], state: match.state };
-    a.socket.send(JSON.stringify(payload));
-    b.socket.send(JSON.stringify(payload));
+    this.safeSend(a.socket, payload);
+    this.safeSend(b.socket, payload);
   }
 
-  initialState() {
-    return {
-      arena: { width: 800, height: 300 },
-      players: {}
-    };
+  safeSend(sock: WebSocket, payload: any) {
+    try {
+      sock.send(JSON.stringify(payload));
+    } catch (err) {
+      console.warn("Failed to send payload", err);
+    }
   }
 
   onClientInput(client: Client, msg: any) {
-    // store inputs for server tick loop in a future impl
-    client.socket.send(JSON.stringify({ type: "input_ack", tick: msg.tick || 0 }));
+    // msg: { type:'input', matchId, tick, inputs: {left,right,up,dash,...} }
+    if (!msg || !msg.matchId) return;
+    const match = this.matches.get(msg.matchId);
+    if (!match) return;
+    // store the latest input for this client (overwrites previous)
+    match.inputs[client.id] = msg.inputs || {};
+    // acknowledge quickly
+    this.safeSend(client.socket, { type: "input_ack", tick: msg.tick || 0 });
+  }
+
+  forfeit(client: Client, matchId: string) {
+    const match = this.matches.get(matchId);
+    if (!match) return;
+    // opponent wins
+    const opponent = match.players.find((p) => p.id !== client.id);
+    const winnerId = opponent ? opponent.id : null;
+    this.endMatch(match, winnerId, "forfeit");
   }
 
   tick() {
+    const matchesToRemove: string[] = [];
+
     for (const [id, match] of this.matches.entries()) {
       match.tick += 1;
-      const update = { type: "state", matchId: id, tick: match.tick, state: match.state };
+
+      const dt = this.tickIntervalMs / 1000; // seconds per tick
+      const playersState = match.state.players;
+
+      // apply inputs & integrate
       for (const p of match.players) {
-        try {
-          p.socket.send(JSON.stringify(update));
-        } catch (err) {
-          console.warn("Failed to send update to", p.id, err);
+        const pid = p.id;
+        const ps = playersState[pid];
+        if (!ps) continue;
+
+        const inputs = match.inputs[pid] || {};
+
+        // Horizontal velocity target
+        let targetVx = 0;
+        if (inputs.left) targetVx -= this.speed;
+        if (inputs.right) targetVx += this.speed;
+        ps.vx = targetVx;
+
+        // Jump handling: trigger jump only when grounded AND input.up true,
+        // use a simple flag to avoid repeated jumps while holding up — rely on client to send true only when held.
+        if (inputs.up && ps.grounded) {
+          ps.vy = -this.jumpVel;
+          ps.grounded = false;
+        }
+
+        // gravity integrate
+        ps.vy = (ps.vy || 0) + this.gravity * dt;
+
+        // integrate positions
+        ps.x += ps.vx * dt;
+        ps.y += ps.vy * dt;
+
+        // friction for horizontal
+        ps.vx *= this.friction;
+
+        // clamp to arena horizontally
+        const w = match.state.arena.width;
+        const half = 24; // approximate half-width of player
+        if (ps.x < half) ps.x = half;
+        if (ps.x > w - half) ps.x = w - half;
+
+        // ground collision
+        const groundY = match.state.arena.groundY != null ? match.state.arena.groundY : 250;
+        if (ps.y >= groundY) {
+          ps.y = groundY;
+          ps.vy = 0;
+          ps.grounded = true;
         }
       }
+
+      // Simple attack/dash logic (unchanged)
+      const [pA, pB] = match.players;
+      const aState = playersState[pA.id];
+      const bState = playersState[pB.id];
+      const dist = Math.abs(aState.x - bState.x);
+      const attackRange = 48;
+      const aInputs = match.inputs[pA.id] || {};
+      const bInputs = match.inputs[pB.id] || {};
+      if (dist <= attackRange) {
+        if (aInputs.dash && !aInputs._applied) {
+          bState.hp -= 8;
+          aInputs._applied = true;
+        }
+        if (bInputs.dash && !bInputs._applied) {
+          aState.hp -= 8;
+          bInputs._applied = true;
+        }
+      }
+
+      // Broadcast state every tick
+      const update = { type: "state", matchId: id, tick: match.tick, state: match.state };
+      for (const player of match.players) {
+        try {
+          player.socket.send(JSON.stringify(update));
+        } catch (err) {
+          console.warn("Failed to send update to", player.id, err);
+        }
+      }
+
+      // Check for match end
+      const aHp = aState.hp;
+      const bHp = bState.hp;
+      if (aHp <= 0 || bHp <= 0) {
+        const winnerId = aHp > bHp ? pA.id : pB.id;
+        this.endMatch(match, winnerId, "hp_depleted");
+        matchesToRemove.push(id);
+      }
     }
+
+    // cleanup ended matches
+    for (const id of matchesToRemove) {
+      this.matches.delete(id);
+    }
+  }
+
+  endMatch(match: Match, winnerId: string | null, reason = "finished") {
+    console.log(`[matchEngine] ending match ${match.id} winner=${winnerId} reason=${reason}`);
+    const payload = { type: "match_end", matchId: match.id, winner: winnerId, reason };
+    for (const player of match.players) {
+      try {
+        player.socket.send(JSON.stringify(payload));
+      } catch (err) {}
+      const client = this.clients.get(player.id);
+      if (client) client.status = "idle";
+    }
+    this.matches.delete(match.id);
   }
 }
 

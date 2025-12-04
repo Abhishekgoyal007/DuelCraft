@@ -4,111 +4,102 @@ import Phaser from "phaser";
 export default class ArenaScene extends Phaser.Scene {
   constructor() {
     super({ key: "ArenaScene" });
-    this.players = {}; // playerId -> sprite
-    this.playerIds = []; // keep order
+    this.players = {};
+    this.inputSendInterval = 100;
+    this.lastInputSend = 0;
+    this.debugText = null;
   }
 
   preload() {
-    // placeholder graphics: if you want use real assets, place them in /public and change keys/paths
-    this.load.image("bg", "/arena-bg.png"); // optional, add file in public/
-    this.load.image("playerA", "/playerA.png"); // optional placeholder
-    this.load.image("playerB", "/playerB.png");
+    // generate simple textures
+    this.textures.generate("playerA", { data: ["2"], pixelWidth: 32, palette: { 0: "#000000", 1: "#00ff00" } });
+    this.textures.generate("playerB", { data: ["2"], pixelWidth: 32, palette: { 0: "#000000", 1: "#00ff00" } });
   }
 
   create() {
-    // background
-    if (this.textures.exists("bg")) {
-      this.add.image(400, 150, "bg").setDepth(-1);
-    } else {
-      this.cameras.main.setBackgroundColor("#8BD3FF");
-    }
-
-    // register global handler to receive server states
+    this.cameras.main.setBackgroundColor("#8BD3FF");
     window.handleServerState = (data) => {
+      // optional debug
+      // console.debug("[client] state tick", data?.tick);
       this.handleServerState(data);
     };
 
-    // Input handling local: keyboard
-    this.cursors = this.input.keyboard.createCursorKeys();
-    this.keyZ = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.Z); // dash
-    this.keyX = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.X); // grab / optional
+    this.debugText = this.add.text(10, 10, "tick: -", { font: "14px Arial", fill: "#000" }).setDepth(1000);
 
-    // Poll inputs regularly and send to server (client-side sampling)
-    this.inputSendInterval = 100; // ms
-    this.lastInputSend = 0;
+    this.cursors = this.input.keyboard.createCursorKeys();
+    this.keyZ = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.Z);
+    this.keyX = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.X);
+
+    // smoothing factor
+    this.smooth = 0.25;
   }
 
   handleServerState(data) {
-    // data.state.players expected shape: { playerId: { x, y, vx, vy, hp } }
-    const playersState = (data && data.state && data.state.players) || {};
+    if (!data || data.type !== "state") return;
+
+    if (this.debugText && data.tick != null) {
+      this.debugText.setText(`tick: ${data.tick}`);
+    }
+
+    const playersState = (data.state && data.state.players) || {};
     const ids = Object.keys(playersState);
 
-    // ensure we track players in stable order
     ids.forEach((pid, idx) => {
       const p = playersState[pid];
       if (!this.players[pid]) {
-        // create sprite for this player
-        const key = idx === 0 ? "playerA" : "playerB";
-        // default position if not provided
-        const startX = p.x != null ? p.x : 100 + idx * 200;
-        const startY = p.y != null ? p.y : 150;
-        const sprite = this.add.sprite(startX, startY, key);
-        sprite.setDisplaySize(64, 64);
+        const tex = idx === 0 ? "playerA" : "playerB";
+        const sprite = this.add.sprite(p.x || 100 + idx * 200, p.y || 200, tex);
+        sprite.setDisplaySize(48, 48);
         sprite.setOrigin(0.5, 0.5);
-        this.players[pid] = { sprite, id: pid };
+        this.players[pid] = { sprite };
       } else {
-        // ensure a placeholder exists
+        const sprite = this.players[pid].sprite;
+        // smooth interpolation for both x & y
+        if (p.x != null) sprite.x = Phaser.Math.Linear(sprite.x, p.x, this.smooth);
+        if (p.y != null) sprite.y = Phaser.Math.Linear(sprite.y, p.y, this.smooth);
       }
     });
 
-    // now update positions — use simple lerp for smoothing
-    ids.forEach((pid) => {
-      const p = playersState[pid];
-      const entry = this.players[pid];
-      if (!entry) return;
-      const sprite = entry.sprite;
-      if (p.x != null) sprite.x = Phaser.Math.Linear(sprite.x, p.x, 0.35);
-      if (p.y != null) sprite.y = Phaser.Math.Linear(sprite.y, p.y, 0.35);
-      // future: apply rotation, sprite frame, hp bars etc.
+    // remove stale sprites
+    Object.keys(this.players).forEach((pid) => {
+      if (!playersState[pid]) {
+        this.players[pid].sprite.destroy();
+        delete this.players[pid];
+      }
     });
   }
 
   update(time, delta) {
-    // sample input and send to server at fixed interval
     this.lastInputSend += delta;
     if (this.lastInputSend >= this.inputSendInterval) {
       this.lastInputSend = 0;
-
-      // read keys
       const inputs = {
-        left: this.cursors.left.isDown ? true : false,
-        right: this.cursors.right.isDown ? true : false,
-        up: this.cursors.up.isDown ? true : false,
-        down: this.cursors.down.isDown ? true : false,
-        dash: this.keyZ.isDown ? true : false,
-        alt: this.keyX.isDown ? true : false
+        left: !!this.cursors.left.isDown,
+        right: !!this.cursors.right.isDown,
+        up: !!this.cursors.up.isDown,
+        down: !!this.cursors.down.isDown,
+        dash: !!this.keyZ.isDown,
+        alt: !!this.keyX.isDown
       };
 
-      // if any input pressed then send
       const any = Object.values(inputs).some(Boolean);
-      if (any && typeof window.sendInput === "function") {
+      if (typeof window.sendInput === "function") {
+        // always send inputs — server can ignore empty if you prefer
         const payload = {
           type: "input",
-          // matchId should be provided by App.jsx currentMatch (we can read window.currentMatch set by App)
           matchId: (window.currentMatch && window.currentMatch.matchId) || null,
           tick: Date.now(),
           inputs
         };
         try {
           window.sendInput(payload);
-        } catch (err) {
-          // ignore send errors
+        } catch (e) {
+          // ignore
         }
       }
     }
   }
 
-  // cleanup when scene destroyed
   shutdown() {
     if (window.handleServerState) delete window.handleServerState;
   }
