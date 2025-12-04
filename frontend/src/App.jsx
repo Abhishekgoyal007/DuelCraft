@@ -304,7 +304,10 @@ export default function App() {
 
       {/* When there's an active match, mount the Phaser arena component */}
       {currentMatch ? (
-        <div style={{ marginBottom: 12, position: "relative" }}>
+        <div className="bg-sky-100 border rounded-lg p-4" style={{ marginBottom: 12, position: "relative" }}>
+          <div className="w-full h-64 md:h-80" id="phaser-container">
+            {/* PhaserArena mounts into this element via Phaser config parent */}
+          </div>
           <PhaserArena match={currentMatch} />
           {/* overlay info (floating on top of canvas) */}
           <div style={{ position: "absolute", left: 12, top: 12, zIndex: 1100 }}>

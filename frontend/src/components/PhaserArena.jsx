@@ -4,22 +4,22 @@ import Phaser from "phaser";
 import ArenaScene from "../game/ArenaScene";
 
 export default function PhaserArena({ match }) {
-  const containerRef = useRef(null);
   const gameRef = useRef(null);
 
   useEffect(() => {
     if (gameRef.current) return;
 
     // ensure parent container is positioned
-    if (containerRef.current) {
-      containerRef.current.style.position = "relative";
+    const container = document.getElementById("phaser-container");
+    if (container) {
+      container.style.position = "relative";
     }
 
     const config = {
       type: Phaser.AUTO,
       width: 800,
       height: 300,
-      parent: containerRef.current,
+      parent: "phaser-container",
       audio: { noAudio: true },
       physics: {
         default: "arcade",
@@ -65,5 +65,5 @@ export default function PhaserArena({ match }) {
     // clean-up handled on unmount
   }, [match]);
 
-  return <div ref={containerRef} style={{ width: 800, height: 300, border: "1px solid #ddd" }} />;
+  return null; // Phaser mounts into #phaser-container defined in parent
 }

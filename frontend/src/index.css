@@ -1,3 +1,13 @@
+@import "tailwindcss";
+
+/* Custom CSS variables and overrides */
+@theme {
+  --color-primary: #66c2ff;
+  --color-accent: #7b61ff;
+  --color-darkbg: #0f1724;
+  --font-display: "Inter", system-ui, sans-serif;
+}
+
 /* :root {
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
