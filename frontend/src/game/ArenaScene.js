@@ -1,64 +1,116 @@
 // frontend/src/game/ArenaScene.js
 import Phaser from "phaser";
-import { CHARACTER_LAYERS, LAYER_ORDER, DEFAULT_AVATAR, ANIMATIONS } from "../config/characterConfig";
+import { CHARACTER_LAYERS, LAYER_ORDER, DEFAULT_AVATAR } from "../config/characterConfig";
 
 export default class ArenaScene extends Phaser.Scene {
   constructor() {
     super({ key: "ArenaScene" });
     this.players = {};
-    this.playerProfiles = {}; // profiles from match_start: { [playerId]: { avatar } }
+    this.playerProfiles = {};
     this.myPlayerId = null;
-    this.inputSendInterval = 100;
+    this.inputSendInterval = 50; // Send inputs more frequently for combat
     this.lastInputSend = 0;
     this.debugText = null;
-    this.texturesGenerated = {};
+    this.matchEnded = false;
   }
 
   preload() {
-    // Preload placeholder/fallback assets
-    // In production, you'd load actual sprite sheets here
-    // this.load.spritesheet('body_0', 'assets/characters/body_0.png', { frameWidth: 48, frameHeight: 48 });
+    // Preload sound effects (optional)
+    // this.load.audio('punch', 'assets/sounds/punch.mp3');
+    // this.load.audio('hit', 'assets/sounds/hit.mp3');
   }
 
   create() {
-    this.cameras.main.setBackgroundColor("#8BD3FF");
+    // Arena background
+    this.cameras.main.setBackgroundColor("#87CEEB");
     
-    // Draw simple ground
-    const ground = this.add.rectangle(400, 550, 800, 100, 0x228B22);
-    ground.setStrokeStyle(2, 0x006400);
+    // Sky gradient
+    this.add.rectangle(400, 100, 800, 200, 0x87CEEB);
     
+    // Mountains in background
+    this.add.triangle(100, 380, 0, 380, 100, 280, 200, 380, 0x6B8E23).setAlpha(0.5);
+    this.add.triangle(300, 380, 150, 380, 300, 230, 450, 380, 0x556B2F).setAlpha(0.5);
+    this.add.triangle(600, 380, 450, 380, 600, 260, 750, 380, 0x6B8E23).setAlpha(0.5);
+    
+    // Ground
+    this.add.rectangle(400, 450, 800, 100, 0x228B22);
+    this.add.rectangle(400, 490, 800, 20, 0x1a6b1a);
+    
+    // Platform line
+    this.add.rectangle(400, 420, 700, 4, 0x8B4513);
+    
+    // Setup input handler
     window.handleServerState = (data) => {
       this.handleServerState(data);
     };
 
-    this.debugText = this.add.text(10, 10, "tick: -", { font: "14px Arial", fill: "#000" }).setDepth(1000);
+    // Debug text
+    this.debugText = this.add.text(10, 10, "tick: -", { 
+      font: "12px Arial", 
+      fill: "#333" 
+    }).setDepth(1000);
 
+    // Input keys
     this.cursors = this.input.keyboard.createCursorKeys();
     this.keyZ = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.Z);
     this.keyX = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.X);
+    this.keySpace = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
 
-    // smoothing factor
-    this.smooth = 0.25;
+    // Smoothing
+    this.smooth = 0.3;
 
-    // Load player profiles from match data (sent by server in match_start)
+    // Load profiles
     this.loadMatchProfiles();
+    
+    // Create HUD
+    this.createHUD();
+  }
+
+  createHUD() {
+    // Player 1 HP (left side)
+    this.hud = {
+      p1: {
+        bgBar: this.add.rectangle(150, 30, 250, 25, 0x333333, 0.8).setOrigin(0, 0.5).setDepth(500),
+        hpBar: this.add.rectangle(152, 30, 246, 21, 0x22c55e).setOrigin(0, 0.5).setDepth(501),
+        label: this.add.text(155, 30, "YOU: 100", { 
+          font: "bold 14px Arial", 
+          fill: "#fff" 
+        }).setOrigin(0, 0.5).setDepth(502),
+      },
+      p2: {
+        bgBar: this.add.rectangle(450, 30, 250, 25, 0x333333, 0.8).setOrigin(0, 0.5).setDepth(500),
+        hpBar: this.add.rectangle(452, 30, 246, 21, 0xef4444).setOrigin(0, 0.5).setDepth(501),
+        label: this.add.text(455, 30, "OPP: 100", { 
+          font: "bold 14px Arial", 
+          fill: "#fff" 
+        }).setOrigin(0, 0.5).setDepth(502),
+      },
+      vs: this.add.text(400, 30, "VS", { 
+        font: "bold 16px Arial", 
+        fill: "#fff",
+        stroke: "#000",
+        strokeThickness: 2 
+      }).setOrigin(0.5, 0.5).setDepth(503),
+    };
+    
+    // Controls help
+    this.add.text(400, 480, "← → Move | ↑ Jump | Z Punch | X Heavy Attack", {
+      font: "11px Arial",
+      fill: "#fff",
+      stroke: "#000",
+      strokeThickness: 2
+    }).setOrigin(0.5, 0.5).setDepth(100);
   }
 
   loadMatchProfiles() {
     const match = window.currentMatch;
-    console.log("[ArenaScene] Loading profiles from match:", match);
-    
     if (match) {
       this.myPlayerId = match.playerId;
-      console.log("[ArenaScene] My player ID:", this.myPlayerId);
-      
-      // match.players is now { [playerId]: { id, profile: { avatar } } }
-      if (match.players && typeof match.players === 'object') {
+      if (match.players) {
         Object.keys(match.players).forEach(pid => {
           const playerInfo = match.players[pid];
           if (playerInfo?.profile?.avatar) {
             this.playerProfiles[pid] = playerInfo.profile.avatar;
-            console.log("[ArenaScene] Loaded profile for", pid, ":", playerInfo.profile.avatar);
           }
         });
       }
@@ -313,103 +365,242 @@ export default class ArenaScene extends Phaser.Scene {
         const avatar = this.playerProfiles[pid] || null;
         const isMyPlayer = pid === this.myPlayerId;
         
-        console.log("[ArenaScene] Creating player", pid, "isMyPlayer:", isMyPlayer, "avatar:", avatar);
+        console.log("[ArenaScene] Creating player", pid, "isMyPlayer:", isMyPlayer);
         
         const texKey = this.createPlayerTexture(pid, avatar, idx);
-        const sprite = this.add.sprite(p.x || 100 + idx * 200, p.y || 200, texKey);
+        const sprite = this.add.sprite(p.x || 100 + idx * 200, p.y || 400, texKey);
         sprite.setDisplaySize(64, 64);
-        sprite.setOrigin(0.5, 1); // Anchor at feet for proper ground alignment
+        sprite.setOrigin(0.5, 1);
+        sprite.setDepth(200);
         
-        // Add name label above player
-        const name = isMyPlayer ? "YOU" : "OPP";
-        const label = this.add.text(0, 0, name, { 
-          font: "bold 12px Arial", 
+        // Set initial facing
+        if (p.facingRight !== undefined) {
+          sprite.setFlipX(!p.facingRight);
+        }
+        
+        // Add floating name label
+        const nameLabel = this.add.text(sprite.x, sprite.y - 80, isMyPlayer ? "YOU" : "ENEMY", { 
+          font: "bold 11px Arial", 
           fill: "#ffffff",
           stroke: "#000000",
-          strokeThickness: 3,
-          backgroundColor: isMyPlayer ? "#22c55e" : "#ef4444",
-          padding: { x: 4, y: 2 }
-        }).setOrigin(0.5, 1).setDepth(100);
-        
-        // Add health bar
-        const healthBarBg = this.add.rectangle(0, 0, 50, 6, 0x333333);
-        healthBarBg.setOrigin(0.5, 0.5).setDepth(99);
-        
-        const healthBar = this.add.rectangle(0, 0, 48, 4, isMyPlayer ? 0x22c55e : 0xef4444);
-        healthBar.setOrigin(0, 0.5).setDepth(100);
+          strokeThickness: 2,
+        }).setOrigin(0.5, 0.5).setDepth(300);
         
         this.players[pid] = { 
           sprite, 
-          label, 
-          healthBarBg,
-          healthBar,
+          nameLabel,
           avatar, 
           isMyPlayer,
-          facingRight: true
+          facingRight: p.facingRight ?? true
         };
       } else {
         const player = this.players[pid];
         const sprite = player.sprite;
         
-        // Track direction for flipping
-        if (p.x != null && sprite.x !== p.x) {
-          player.facingRight = p.x > sprite.x;
-          sprite.setFlipX(!player.facingRight);
+        // Update facing direction from server
+        if (p.facingRight !== undefined) {
+          player.facingRight = p.facingRight;
+          sprite.setFlipX(!p.facingRight);
         }
         
         // Smooth interpolation
         if (p.x != null) sprite.x = Phaser.Math.Linear(sprite.x, p.x, this.smooth);
         if (p.y != null) sprite.y = Phaser.Math.Linear(sprite.y, p.y, this.smooth);
         
-        // Update UI positions
-        if (player.label) {
-          player.label.x = sprite.x;
-          player.label.y = sprite.y - 70;
-        }
+        // Update attack state visuals
+        this.updatePlayerVisuals(pid, p, player);
         
-        if (player.healthBarBg) {
-          player.healthBarBg.x = sprite.x;
-          player.healthBarBg.y = sprite.y - 56;
-        }
-        
-        if (player.healthBar) {
-          const healthPercent = (p.health ?? 100) / 100;
-          player.healthBar.x = sprite.x - 24;
-          player.healthBar.y = sprite.y - 56;
-          player.healthBar.width = 48 * healthPercent;
+        // Update floating UI positions
+        if (player.nameLabel) {
+          player.nameLabel.x = sprite.x;
+          player.nameLabel.y = sprite.y - 80;
         }
       }
     });
+
+    // Process game events (hits, attacks)
+    if (data.state.events) {
+      data.state.events.forEach(event => this.handleGameEvent(event));
+    }
+
+    // Update HUD
+    this.updateHUD(playersState);
 
     // Remove stale sprites
     Object.keys(this.players).forEach((pid) => {
       if (!playersState[pid]) {
-        this.players[pid].sprite.destroy();
-        if (this.players[pid].label) this.players[pid].label.destroy();
-        if (this.players[pid].healthBarBg) this.players[pid].healthBarBg.destroy();
-        if (this.players[pid].healthBar) this.players[pid].healthBar.destroy();
-        delete this.players[pid];
+        this.destroyPlayer(pid);
       }
     });
   }
 
+  updatePlayerVisuals(pid, serverState, player) {
+    const sprite = player.sprite;
+    
+    // Tint based on attack state
+    if (serverState.attackState === "hurt") {
+      sprite.setTint(0xff6666); // Red tint when hurt
+    } else if (serverState.attackState === "punch") {
+      sprite.setTint(0xffff66); // Yellow tint when punching
+    } else if (serverState.attackState === "heavy") {
+      sprite.setTint(0xff9933); // Orange tint when heavy attacking
+    } else {
+      sprite.clearTint();
+    }
+    
+    // Scale effect for attacks
+    if (serverState.attackState === "punch") {
+      sprite.setScale(1.1, 0.95);
+    } else if (serverState.attackState === "heavy") {
+      sprite.setScale(1.2, 0.9);
+    } else {
+      sprite.setScale(1, 1);
+    }
+  }
+
+  handleGameEvent(event) {
+    switch (event.type) {
+      case "hit":
+        this.showHitEffect(event);
+        break;
+      case "attack":
+        this.showAttackEffect(event);
+        break;
+      case "death":
+        this.showDeathEffect(event);
+        break;
+    }
+  }
+
+  showHitEffect(event) {
+    const victim = this.players[event.victim];
+    if (!victim) return;
+    
+    // Screen shake
+    this.cameras.main.shake(100, 0.01);
+    
+    // Damage number
+    const dmgText = this.add.text(
+      victim.sprite.x, 
+      victim.sprite.y - 40,
+      `-${event.damage}`,
+      { 
+        font: "bold 20px Arial", 
+        fill: "#ff0000",
+        stroke: "#000",
+        strokeThickness: 3
+      }
+    ).setOrigin(0.5).setDepth(600);
+    
+    // Animate damage number
+    this.tweens.add({
+      targets: dmgText,
+      y: dmgText.y - 50,
+      alpha: 0,
+      duration: 800,
+      ease: "Power2",
+      onComplete: () => dmgText.destroy()
+    });
+    
+    // Hit spark effect
+    const spark = this.add.circle(victim.sprite.x, victim.sprite.y - 30, 15, 0xffff00);
+    spark.setDepth(550);
+    this.tweens.add({
+      targets: spark,
+      scale: 2,
+      alpha: 0,
+      duration: 200,
+      onComplete: () => spark.destroy()
+    });
+  }
+
+  showAttackEffect(event) {
+    const attacker = this.players[event.attacker];
+    if (!attacker) return;
+    
+    // Attack swoosh effect
+    const dir = attacker.facingRight ? 1 : -1;
+    const swooshX = attacker.sprite.x + (dir * 40);
+    
+    const swoosh = this.add.ellipse(swooshX, attacker.sprite.y - 30, 30, 15, 
+      event.attackType === "heavy" ? 0xff6600 : 0xffffaa, 0.7);
+    swoosh.setDepth(400);
+    
+    this.tweens.add({
+      targets: swoosh,
+      x: swooshX + (dir * 30),
+      scaleX: 2,
+      alpha: 0,
+      duration: 150,
+      onComplete: () => swoosh.destroy()
+    });
+  }
+
+  showDeathEffect(event) {
+    const victim = this.players[event.victim];
+    if (!victim) return;
+    
+    // Big screen shake
+    this.cameras.main.shake(300, 0.02);
+    
+    // Flash
+    this.cameras.main.flash(200, 255, 255, 255);
+  }
+
+  updateHUD(playersState) {
+    const ids = Object.keys(playersState);
+    if (ids.length < 2) return;
+    
+    // Sort so my player is always p1
+    const myId = this.myPlayerId;
+    const oppId = ids.find(id => id !== myId) || ids[1];
+    
+    const myState = playersState[myId];
+    const oppState = playersState[oppId];
+    
+    if (myState && this.hud.p1) {
+      const hpPercent = Math.max(0, myState.hp) / (myState.maxHp || 100);
+      this.hud.p1.hpBar.width = 246 * hpPercent;
+      this.hud.p1.hpBar.fillColor = hpPercent > 0.5 ? 0x22c55e : hpPercent > 0.25 ? 0xeab308 : 0xef4444;
+      this.hud.p1.label.setText(`YOU: ${Math.max(0, Math.ceil(myState.hp))}`);
+    }
+    
+    if (oppState && this.hud.p2) {
+      const hpPercent = Math.max(0, oppState.hp) / (oppState.maxHp || 100);
+      this.hud.p2.hpBar.width = 246 * hpPercent;
+      this.hud.p2.hpBar.fillColor = hpPercent > 0.5 ? 0xef4444 : hpPercent > 0.25 ? 0xeab308 : 0x22c55e;
+      this.hud.p2.label.setText(`OPP: ${Math.max(0, Math.ceil(oppState.hp))}`);
+    }
+  }
+
+  destroyPlayer(pid) {
+    const player = this.players[pid];
+    if (!player) return;
+    
+    player.sprite?.destroy();
+    player.nameLabel?.destroy();
+    delete this.players[pid];
+  }
+
   update(time, delta) {
+    if (this.matchEnded) return;
+    
     this.lastInputSend += delta;
     if (this.lastInputSend >= this.inputSendInterval) {
       this.lastInputSend = 0;
+      
       const inputs = {
         left: !!this.cursors.left.isDown,
         right: !!this.cursors.right.isDown,
-        up: !!this.cursors.up.isDown,
-        down: !!this.cursors.down.isDown,
-        dash: !!this.keyZ.isDown,
-        alt: !!this.keyX.isDown
+        up: !!this.cursors.up.isDown || !!this.keySpace.isDown,
+        attack: !!this.keyZ.isDown,
+        heavy: !!this.keyX.isDown
       };
 
       if (typeof window.sendInput === "function") {
         const payload = {
           type: "input",
-          matchId: (window.currentMatch && window.currentMatch.matchId) || null,
+          matchId: window.currentMatch?.matchId || null,
           tick: Date.now(),
           inputs
         };

@@ -23,13 +23,65 @@ export type Client = {
   profile?: PlayerProfile; // player's profile with avatar
 };
 
+// Combat constants
+const COMBAT = {
+  // Attack types
+  PUNCH: {
+    damage: 10,
+    range: 60,
+    cooldown: 400,     // ms
+    knockback: 150,    // horizontal force
+    knockbackY: -100,  // vertical force (upward)
+    duration: 200,     // animation duration ms
+  },
+  HEAVY: {
+    damage: 25,
+    range: 75,
+    cooldown: 800,
+    knockback: 300,
+    knockbackY: -180,
+    duration: 350,
+  },
+  // Stun/hitstun duration when hit
+  HITSTUN_DURATION: 300,
+};
+
+export type PlayerState = {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  hp: number;
+  maxHp: number;
+  grounded: boolean;
+  facingRight: boolean;
+  // Combat state
+  attackCooldown: number;  // timestamp when can attack again
+  attackState: "none" | "punch" | "heavy" | "hurt";
+  attackEndTime: number;   // when current attack/hurt animation ends
+  stunEndTime: number;     // when stun ends (can't act while stunned)
+  lastDamageFrom: string | null; // id of last player who dealt damage
+};
+
 export type Match = {
   id: string;
   players: [Client, Client];
-  state: any;
+  state: {
+    arena: { width: number; height: number; groundY: number };
+    players: Record<string, PlayerState>;
+    events: GameEvent[]; // events to broadcast (hits, etc)
+  };
   tick: number;
   inputs: Record<string, any>; // latest input per player id
   startedAt: number;
+};
+
+export type GameEvent = {
+  type: "hit" | "attack" | "death";
+  attacker?: string;
+  victim?: string;
+  damage?: number;
+  attackType?: string;
 };
 
 export class MatchEngine {
@@ -150,16 +202,34 @@ export class MatchEngine {
     const id = uuidv4();
 
     // initial positions (left / right)
-    const leftX = 120;
-    const rightX = 680;
-    const groundY = 250; // y coordinate representing ground level
+    const leftX = 150;
+    const rightX = 650;
+    const groundY = 420; // y coordinate representing ground level
+    const now = Date.now();
+
+    const createPlayerState = (x: number, facingRight: boolean): PlayerState => ({
+      x,
+      y: groundY,
+      vx: 0,
+      vy: 0,
+      hp: 100,
+      maxHp: 100,
+      grounded: true,
+      facingRight,
+      attackCooldown: 0,
+      attackState: "none",
+      attackEndTime: 0,
+      stunEndTime: 0,
+      lastDamageFrom: null,
+    });
 
     const state = {
-      arena: { width: 800, height: 300, groundY },
+      arena: { width: 800, height: 500, groundY },
       players: {
-        [a.id]: { x: leftX, y: groundY, vx: 0, vy: 0, hp: 100, grounded: true },
-        [b.id]: { x: rightX, y: groundY, vx: 0, vy: 0, hp: 100, grounded: true }
-      }
+        [a.id]: createPlayerState(leftX, true),   // Player A faces right
+        [b.id]: createPlayerState(rightX, false), // Player B faces left
+      },
+      events: [] as GameEvent[],
     };
 
     const match: Match = {
@@ -168,7 +238,7 @@ export class MatchEngine {
       state,
       tick: 0,
       inputs: {},
-      startedAt: Date.now()
+      startedAt: now
     };
 
     this.matches.set(id, match);
@@ -208,7 +278,7 @@ export class MatchEngine {
   }
 
   onClientInput(client: Client, msg: any) {
-    // msg: { type:'input', matchId, tick, inputs: {left,right,up,dash,...} }
+    // msg: { type:'input', matchId, tick, inputs: {left,right,up,attack,heavy,...} }
     if (!msg || !msg.matchId) return;
     const match = this.matches.get(msg.matchId);
     if (!match) return;
@@ -227,82 +297,202 @@ export class MatchEngine {
     this.endMatch(match, winnerId, "forfeit");
   }
 
+  // Check if attacker hits defender
+  checkHit(attacker: PlayerState, defender: PlayerState, range: number): boolean {
+    const dx = defender.x - attacker.x;
+    const dy = Math.abs(defender.y - attacker.y);
+    
+    // Check if defender is in front of attacker (based on facing direction)
+    const inFront = attacker.facingRight ? dx > 0 : dx < 0;
+    const distance = Math.abs(dx);
+    
+    // Hit if: in range, in front, and vertically close enough
+    return inFront && distance <= range && dy <= 50;
+  }
+
+  // Process attack for a player
+  processAttack(
+    match: Match,
+    attackerId: string, 
+    defenderId: string, 
+    attackType: "punch" | "heavy",
+    now: number
+  ): void {
+    const attacker = match.state.players[attackerId];
+    const defender = match.state.players[defenderId];
+    
+    if (!attacker || !defender) return;
+    
+    const config = attackType === "punch" ? COMBAT.PUNCH : COMBAT.HEAVY;
+    
+    // Check cooldown
+    if (now < attacker.attackCooldown) return;
+    
+    // Check if attacker is stunned
+    if (now < attacker.stunEndTime) return;
+    
+    // Check if already in an attack animation
+    if (attacker.attackState !== "none" && now < attacker.attackEndTime) return;
+    
+    // Start attack animation
+    attacker.attackState = attackType;
+    attacker.attackEndTime = now + config.duration;
+    attacker.attackCooldown = now + config.cooldown;
+    
+    // Add attack event for client animation
+    match.state.events.push({
+      type: "attack",
+      attacker: attackerId,
+      attackType,
+    });
+    
+    // Check if hit connects
+    if (this.checkHit(attacker, defender, config.range)) {
+      // Apply damage
+      defender.hp -= config.damage;
+      defender.lastDamageFrom = attackerId;
+      
+      // Apply knockback
+      const knockbackDir = attacker.facingRight ? 1 : -1;
+      defender.vx += config.knockback * knockbackDir;
+      defender.vy += config.knockbackY;
+      defender.grounded = false;
+      
+      // Apply hitstun to defender
+      defender.stunEndTime = now + COMBAT.HITSTUN_DURATION;
+      defender.attackState = "hurt";
+      defender.attackEndTime = now + COMBAT.HITSTUN_DURATION;
+      
+      // Add hit event
+      match.state.events.push({
+        type: "hit",
+        attacker: attackerId,
+        victim: defenderId,
+        damage: config.damage,
+        attackType,
+      });
+      
+      console.log(`[combat] ${attackerId} hit ${defenderId} with ${attackType} for ${config.damage} damage`);
+    }
+  }
+
   tick() {
     const matchesToRemove: string[] = [];
+    const now = Date.now();
 
     for (const [id, match] of this.matches.entries()) {
       match.tick += 1;
+      
+      // Clear events from previous tick
+      match.state.events = [];
 
       const dt = this.tickIntervalMs / 1000; // seconds per tick
       const playersState = match.state.players;
+      const [pA, pB] = match.players;
 
-      // apply inputs & integrate
+      // Process each player
       for (const p of match.players) {
         const pid = p.id;
         const ps = playersState[pid];
         if (!ps) continue;
 
         const inputs = match.inputs[pid] || {};
-
-        // Horizontal velocity target
-        let targetVx = 0;
-        if (inputs.left) targetVx -= this.speed;
-        if (inputs.right) targetVx += this.speed;
-        ps.vx = targetVx;
-
-        // Jump handling: trigger jump only when grounded AND input.up true,
-        // use a simple flag to avoid repeated jumps while holding up — rely on client to send true only when held.
-        if (inputs.up && ps.grounded) {
-          ps.vy = -this.jumpVel;
-          ps.grounded = false;
+        const isStunned = now < ps.stunEndTime;
+        
+        // Reset attack state if animation ended
+        if (ps.attackState !== "none" && now >= ps.attackEndTime) {
+          ps.attackState = "none";
         }
 
-        // gravity integrate
+        // --- Movement (only if not stunned) ---
+        if (!isStunned) {
+          // Update facing direction based on movement
+          if (inputs.left) ps.facingRight = false;
+          if (inputs.right) ps.facingRight = true;
+          
+          // Horizontal velocity target
+          let targetVx = 0;
+          if (inputs.left) targetVx -= this.speed;
+          if (inputs.right) targetVx += this.speed;
+          
+          // Only apply movement input if not attacking
+          if (ps.attackState === "none") {
+            ps.vx = targetVx;
+          }
+          
+          // Jump handling
+          if (inputs.up && ps.grounded) {
+            ps.vy = -this.jumpVel;
+            ps.grounded = false;
+          }
+        }
+
+        // --- Physics (always applies) ---
+        // Gravity
         ps.vy = (ps.vy || 0) + this.gravity * dt;
 
-        // integrate positions
+        // Integrate positions
         ps.x += ps.vx * dt;
         ps.y += ps.vy * dt;
 
-        // friction for horizontal
-        ps.vx *= this.friction;
+        // Friction (more when grounded)
+        ps.vx *= ps.grounded ? this.friction : 0.98;
 
-        // clamp to arena horizontally
+        // Clamp to arena horizontally
         const w = match.state.arena.width;
-        const half = 24; // approximate half-width of player
+        const half = 32;
         if (ps.x < half) ps.x = half;
         if (ps.x > w - half) ps.x = w - half;
 
-        // ground collision
-        const groundY = match.state.arena.groundY != null ? match.state.arena.groundY : 250;
+        // Ground collision
+        const groundY = match.state.arena.groundY;
         if (ps.y >= groundY) {
           ps.y = groundY;
           ps.vy = 0;
           ps.grounded = true;
         }
+
+        // --- Attacks ---
+        const opponentId = pid === pA.id ? pB.id : pA.id;
+        
+        // Punch attack (Z key / attack input)
+        if (inputs.attack && !inputs._attackApplied) {
+          this.processAttack(match, pid, opponentId, "punch", now);
+          inputs._attackApplied = true;
+        }
+        if (!inputs.attack) {
+          inputs._attackApplied = false;
+        }
+        
+        // Heavy attack (X key / heavy input)
+        if (inputs.heavy && !inputs._heavyApplied) {
+          this.processAttack(match, pid, opponentId, "heavy", now);
+          inputs._heavyApplied = true;
+        }
+        if (!inputs.heavy) {
+          inputs._heavyApplied = false;
+        }
       }
 
-      // Simple attack/dash logic (unchanged)
-      const [pA, pB] = match.players;
+      // Auto-face opponent when idle
       const aState = playersState[pA.id];
       const bState = playersState[pB.id];
-      const dist = Math.abs(aState.x - bState.x);
-      const attackRange = 48;
-      const aInputs = match.inputs[pA.id] || {};
-      const bInputs = match.inputs[pB.id] || {};
-      if (dist <= attackRange) {
-        if (aInputs.dash && !aInputs._applied) {
-          bState.hp -= 8;
-          aInputs._applied = true;
+      if (aState && bState) {
+        if (aState.attackState === "none" && !match.inputs[pA.id]?.left && !match.inputs[pA.id]?.right) {
+          aState.facingRight = bState.x > aState.x;
         }
-        if (bInputs.dash && !bInputs._applied) {
-          aState.hp -= 8;
-          bInputs._applied = true;
+        if (bState.attackState === "none" && !match.inputs[pB.id]?.left && !match.inputs[pB.id]?.right) {
+          bState.facingRight = aState.x > bState.x;
         }
       }
 
       // Broadcast state every tick
-      const update = { type: "state", matchId: id, tick: match.tick, state: match.state };
+      const update = { 
+        type: "state", 
+        matchId: id, 
+        tick: match.tick, 
+        state: match.state 
+      };
       for (const player of match.players) {
         try {
           player.socket.send(JSON.stringify(update));
@@ -312,12 +502,17 @@ export class MatchEngine {
       }
 
       // Check for match end
-      const aHp = aState.hp;
-      const bHp = bState.hp;
-      if (aHp <= 0 || bHp <= 0) {
-        const winnerId = aHp > bHp ? pA.id : pB.id;
-        this.endMatch(match, winnerId, "hp_depleted");
-        matchesToRemove.push(id);
+      if (aState && bState) {
+        if (aState.hp <= 0 || bState.hp <= 0) {
+          const winnerId = aState.hp > bState.hp ? pA.id : pB.id;
+          
+          // Add death event
+          const loserId = winnerId === pA.id ? pB.id : pA.id;
+          match.state.events.push({ type: "death", victim: loserId });
+          
+          this.endMatch(match, winnerId, "hp_depleted");
+          matchesToRemove.push(id);
+        }
       }
     }
 

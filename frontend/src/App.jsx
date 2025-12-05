@@ -10,12 +10,14 @@ export default function App() {
   const [logs, setLogs] = useState([]);
   const [inQueue, setInQueue] = useState(false);
   const [currentMatch, setCurrentMatch] = useState(null);
+  const [matchResult, setMatchResult] = useState(null); // { won: boolean, coinsEarned, reason }
+  const [coins, setCoins] = useState(0); // User's coin balance
 
   // auth / user state from ConnectWallet
   const [user, setUser] = useState(null); // { address, token, user }
   const [userProfile, setUserProfile] = useState(null); // { avatar: {...} }
 
-  // Fetch profile when user changes
+  // Fetch profile and coins when user changes
   useEffect(() => {
     async function loadProfile() {
       if (user?.address) {
@@ -24,17 +26,36 @@ export default function App() {
           const data = await res.json();
           if (data?.avatar) {
             setUserProfile({ avatar: data.avatar });
-            console.log("[App] Profile loaded:", data.avatar);
           }
+          if (data?.coins !== undefined) {
+            setCoins(data.coins);
+          }
+          console.log("[App] Profile loaded, coins:", data.coins);
         } catch (err) {
           console.warn("[App] Failed to fetch profile:", err);
         }
       } else {
         setUserProfile(null);
+        setCoins(0);
       }
     }
     loadProfile();
   }, [user]);
+
+  // Refresh coins after match ends
+  useEffect(() => {
+    if (matchResult && user?.address) {
+      // Refetch profile to get updated coin balance
+      fetch(`http://localhost:4000/profile?address=${user.address}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data?.coins !== undefined) {
+            setCoins(data.coins);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [matchResult, user?.address]);
 
   // expose user globally for other scripts (Phaser etc.)
   useEffect(() => {
@@ -118,7 +139,20 @@ export default function App() {
           } catch (e) {}
         } else if (data.type === "match_end") {
           log("Match ended: " + (data.matchId || "unknown"));
-          // optionally display winner: data.winner
+          
+          // Determine if we won
+          const myId = window.currentMatch?.playerId;
+          const won = data.winner === myId;
+          const coinsEarned = won ? data.rewards?.winner?.coins : data.rewards?.loser?.coins;
+          
+          setMatchResult({
+            won,
+            coinsEarned: coinsEarned || 0,
+            reason: data.reason
+          });
+          
+          log(won ? `🎉 YOU WON! +${coinsEarned} coins` : `💀 You lost. +${coinsEarned} coins`);
+          
           setCurrentMatch(null);
           setInQueue(false);
           if (window.currentMatch) delete window.currentMatch;
@@ -289,6 +323,82 @@ export default function App() {
         </div>
       </header>
 
+      {/* Coins display */}
+      {user && (
+        <div style={{
+          background: "linear-gradient(135deg, #ffd700 0%, #ffb347 100%)",
+          padding: "8px 16px",
+          borderRadius: 8,
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 8,
+          marginBottom: 12,
+          boxShadow: "0 2px 8px rgba(0,0,0,0.15)"
+        }}>
+          <span style={{ fontSize: 20 }}>🪙</span>
+          <span style={{ fontWeight: "bold", fontSize: 18, color: "#333" }}>{coins}</span>
+          <span style={{ fontSize: 12, color: "#555" }}>coins</span>
+        </div>
+      )}
+
+      {/* Match Result Popup */}
+      {matchResult && (
+        <div style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: "rgba(0,0,0,0.7)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 9999
+        }}>
+          <div style={{
+            background: matchResult.won ? "linear-gradient(135deg, #22c55e 0%, #16a34a 100%)" : "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)",
+            padding: "40px 60px",
+            borderRadius: 16,
+            textAlign: "center",
+            color: "white",
+            boxShadow: "0 10px 40px rgba(0,0,0,0.3)"
+          }}>
+            <div style={{ fontSize: 48, marginBottom: 16 }}>
+              {matchResult.won ? "🎉" : "💀"}
+            </div>
+            <h2 style={{ fontSize: 32, margin: "0 0 8px 0" }}>
+              {matchResult.won ? "VICTORY!" : "DEFEAT"}
+            </h2>
+            <p style={{ fontSize: 18, margin: "0 0 20px 0", opacity: 0.9 }}>
+              {matchResult.reason === "hp_depleted" ? (matchResult.won ? "You knocked out your opponent!" : "You were knocked out!") : "Match ended"}
+            </p>
+            <div style={{
+              background: "rgba(255,255,255,0.2)",
+              padding: "12px 24px",
+              borderRadius: 8,
+              marginBottom: 20
+            }}>
+              <span style={{ fontSize: 24 }}>🪙 +{matchResult.coinsEarned}</span>
+            </div>
+            <button
+              onClick={() => setMatchResult(null)}
+              style={{
+                background: "white",
+                color: matchResult.won ? "#16a34a" : "#dc2626",
+                border: "none",
+                padding: "12px 32px",
+                borderRadius: 8,
+                fontSize: 16,
+                fontWeight: "bold",
+                cursor: "pointer"
+              }}
+            >
+              Continue
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* controls: positioned above the canvas so clicks reach buttons */}
       <div
         style={{
@@ -349,6 +459,74 @@ export default function App() {
           </div>
         </div>
       ) : null}
+
+      {/* Match Result Modal */}
+      {matchResult && (
+        <div 
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: "rgba(0,0,0,0.8)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 9999
+          }}
+        >
+          <div 
+            style={{
+              background: matchResult.won ? "linear-gradient(135deg, #22c55e, #16a34a)" : "linear-gradient(135deg, #ef4444, #dc2626)",
+              padding: "40px 60px",
+              borderRadius: 16,
+              textAlign: "center",
+              color: "white",
+              boxShadow: "0 20px 60px rgba(0,0,0,0.5)"
+            }}
+          >
+            <div style={{ fontSize: 64, marginBottom: 16 }}>
+              {matchResult.won ? "🏆" : "💀"}
+            </div>
+            <h2 style={{ fontSize: 36, margin: "0 0 8px 0" }}>
+              {matchResult.won ? "VICTORY!" : "DEFEAT"}
+            </h2>
+            <p style={{ fontSize: 18, margin: "0 0 20px 0", opacity: 0.9 }}>
+              {matchResult.reason === "forfeit" 
+                ? "Opponent forfeited" 
+                : matchResult.won 
+                  ? "You knocked out your opponent!" 
+                  : "You were knocked out!"}
+            </p>
+            <div 
+              style={{
+                background: "rgba(255,255,255,0.2)",
+                padding: "12px 24px",
+                borderRadius: 8,
+                marginBottom: 24
+              }}
+            >
+              <span style={{ fontSize: 24 }}>💰 +{matchResult.coinsEarned} coins</span>
+            </div>
+            <button
+              onClick={() => setMatchResult(null)}
+              style={{
+                background: "white",
+                color: matchResult.won ? "#16a34a" : "#dc2626",
+                border: "none",
+                padding: "12px 32px",
+                fontSize: 18,
+                fontWeight: "bold",
+                borderRadius: 8,
+                cursor: "pointer"
+              }}
+            >
+              Continue
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Logs */}
       <div style={{ maxHeight: 360, overflow: "auto", background: "#f7f7f7", padding: 12 }}>

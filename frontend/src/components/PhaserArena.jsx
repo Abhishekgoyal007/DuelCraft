@@ -18,7 +18,7 @@ export default function PhaserArena({ match }) {
     const config = {
       type: Phaser.AUTO,
       width: 800,
-      height: 300,
+      height: 500,
       parent: "phaser-container",
       audio: { noAudio: true },
       physics: {
