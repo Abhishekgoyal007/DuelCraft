@@ -1,6 +1,18 @@
 // backend/src/matchEngine.ts
 import WebSocket from "ws";
 import { v4 as uuidv4 } from "uuid";
+import { Player, MatchHistory } from "./db/models";
+import { isDBConnected } from "./db/connection";
+
+export type PlayerProfile = {
+  address?: string;
+  avatar?: {
+    body?: string;
+    hair?: string;
+    face?: string;
+    color?: string;
+  };
+};
 
 export type Client = {
   id: string;
@@ -8,6 +20,7 @@ export type Client = {
   lastSeen: number;
   status: "idle" | "in_match";
   meta?: any;
+  profile?: PlayerProfile; // player's profile with avatar
 };
 
 export type Match = {
@@ -68,6 +81,14 @@ export class MatchEngine {
 
     switch (msg.type) {
       case "join_queue":
+        // Capture profile from message if provided
+        if (msg.auth?.address || msg.profile) {
+          client.profile = {
+            address: msg.auth?.address,
+            avatar: msg.profile?.avatar
+          };
+          console.log(`[matchEngine] Profile attached for ${id}:`, client.profile);
+        }
         this.enqueueClient(client);
         break;
       case "leave_queue":
@@ -153,10 +174,29 @@ export class MatchEngine {
     this.matches.set(id, match);
     console.log(`[matchEngine] match created ${id} between ${a.id} and ${b.id}`);
 
-    // notify players
-    const payload = { type: "match_start", matchId: id, players: [a.id, b.id], state: match.state };
-    this.safeSend(a.socket, payload);
-    this.safeSend(b.socket, payload);
+    // Build players info with profiles for client
+    const playersInfo: Record<string, { id: string; profile?: any }> = {
+      [a.id]: { id: a.id, profile: a.profile || null },
+      [b.id]: { id: b.id, profile: b.profile || null }
+    };
+
+    // notify players - each player gets their own playerId so they know which one they are
+    const payloadA = { 
+      type: "match_start", 
+      matchId: id, 
+      playerId: a.id, // tells client A which player they are
+      players: playersInfo,
+      state: match.state 
+    };
+    const payloadB = { 
+      type: "match_start", 
+      matchId: id, 
+      playerId: b.id, // tells client B which player they are
+      players: playersInfo,
+      state: match.state 
+    };
+    this.safeSend(a.socket, payloadA);
+    this.safeSend(b.socket, payloadB);
   }
 
   safeSend(sock: WebSocket, payload: any) {
@@ -289,7 +329,32 @@ export class MatchEngine {
 
   endMatch(match: Match, winnerId: string | null, reason = "finished") {
     console.log(`[matchEngine] ending match ${match.id} winner=${winnerId} reason=${reason}`);
-    const payload = { type: "match_end", matchId: match.id, winner: winnerId, reason };
+    
+    const COINS_FOR_WIN = 20;
+    const COINS_FOR_LOSS = 5;
+    
+    // Find winner and loser clients
+    const winnerClient = match.players.find(p => p.id === winnerId);
+    const loserClient = match.players.find(p => p.id !== winnerId);
+    
+    const winnerAddress = winnerClient?.profile?.address?.toLowerCase();
+    const loserAddress = loserClient?.profile?.address?.toLowerCase();
+    
+    // Save match to DB and update player stats
+    this.saveMatchResult(match, winnerId, winnerAddress, loserAddress, reason, COINS_FOR_WIN, COINS_FOR_LOSS);
+    
+    // Send match_end to clients with coin rewards info
+    const payload = { 
+      type: "match_end", 
+      matchId: match.id, 
+      winner: winnerId, 
+      reason,
+      rewards: {
+        winner: { coins: COINS_FOR_WIN },
+        loser: { coins: COINS_FOR_LOSS }
+      }
+    };
+    
     for (const player of match.players) {
       try {
         player.socket.send(JSON.stringify(payload));
@@ -298,6 +363,79 @@ export class MatchEngine {
       if (client) client.status = "idle";
     }
     this.matches.delete(match.id);
+  }
+
+  async saveMatchResult(
+    match: Match, 
+    winnerId: string | null, 
+    winnerAddress: string | undefined, 
+    loserAddress: string | undefined,
+    reason: string,
+    coinsForWin: number,
+    coinsForLoss: number
+  ) {
+    if (!isDBConnected()) {
+      console.log("[matchEngine] DB not connected, skipping match save");
+      return;
+    }
+
+    try {
+      const duration = Math.floor((Date.now() - match.startedAt) / 1000);
+      const playersState = match.state.players;
+
+      // Build players array for match history
+      const playersData = match.players.map(p => ({
+        walletAddress: p.profile?.address?.toLowerCase() || "",
+        odlId: p.id,
+        avatar: p.profile?.avatar || null,
+        finalHp: playersState[p.id]?.hp || 0
+      }));
+
+      // Save match history
+      await MatchHistory.create({
+        matchId: match.id,
+        players: playersData,
+        winner: winnerAddress || null,
+        loser: loserAddress || null,
+        duration,
+        endReason: reason as any,
+        coinsAwarded: coinsForWin
+      });
+
+      // Update winner stats and coins
+      if (winnerAddress) {
+        await Player.findOneAndUpdate(
+          { walletAddress: winnerAddress },
+          { 
+            $inc: { 
+              coins: coinsForWin, 
+              "stats.wins": 1, 
+              "stats.totalMatches": 1 
+            } 
+          }
+        );
+        console.log(`[matchEngine] Awarded ${coinsForWin} coins to winner ${winnerAddress}`);
+      }
+
+      // Update loser stats and coins
+      if (loserAddress) {
+        await Player.findOneAndUpdate(
+          { walletAddress: loserAddress },
+          { 
+            $inc: { 
+              coins: coinsForLoss, 
+              "stats.losses": 1, 
+              "stats.totalMatches": 1 
+            } 
+          }
+        );
+        console.log(`[matchEngine] Awarded ${coinsForLoss} coins to loser ${loserAddress}`);
+      }
+
+      console.log(`[matchEngine] Match ${match.id} saved to DB`);
+    } catch (err) {
+      console.error("[matchEngine] Failed to save match result:", err);
+    }
   }
 }
 

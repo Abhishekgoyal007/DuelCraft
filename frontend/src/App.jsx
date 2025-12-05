@@ -13,6 +13,28 @@ export default function App() {
 
   // auth / user state from ConnectWallet
   const [user, setUser] = useState(null); // { address, token, user }
+  const [userProfile, setUserProfile] = useState(null); // { avatar: {...} }
+
+  // Fetch profile when user changes
+  useEffect(() => {
+    async function loadProfile() {
+      if (user?.address) {
+        try {
+          const res = await fetch(`http://localhost:4000/profile?address=${user.address}`);
+          const data = await res.json();
+          if (data?.avatar) {
+            setUserProfile({ avatar: data.avatar });
+            console.log("[App] Profile loaded:", data.avatar);
+          }
+        } catch (err) {
+          console.warn("[App] Failed to fetch profile:", err);
+        }
+      } else {
+        setUserProfile(null);
+      }
+    }
+    loadProfile();
+  }, [user]);
 
   // expose user globally for other scripts (Phaser etc.)
   useEffect(() => {
@@ -54,6 +76,10 @@ export default function App() {
   function attachAuthPayload(payload) {
     if (user && user.address) {
       payload.auth = { address: user.address, token: user.token || null };
+      // Include profile/avatar if available
+      if (userProfile?.avatar) {
+        payload.profile = { avatar: userProfile.avatar };
+      }
     }
     return payload;
   }
