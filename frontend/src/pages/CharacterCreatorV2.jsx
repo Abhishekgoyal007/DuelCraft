@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useWeb3 } from "../context/Web3Context";
 import { CHARACTER_LAYERS, DEFAULT_AVATAR, LAYER_ORDER } from "../config/characterConfig";
 
 // Simple character preview using colored divs
@@ -93,11 +94,15 @@ function LayerOption({ option, isSelected, onClick, layer }) {
 export default function CharacterCreatorV2() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { isConnected, connect, mintCharacter, address, isCorrectChain, switchToMantleNetwork } = useWeb3();
   
   const [avatar, setAvatar] = useState(DEFAULT_AVATAR);
   const [activeTab, setActiveTab] = useState("body");
   const [loading, setLoading] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [minting, setMinting] = useState(false);
+  const [mintSuccess, setMintSuccess] = useState(false);
+  const [txHash, setTxHash] = useState(null);
 
   // Load existing avatar on mount
   useEffect(() => {
@@ -145,6 +150,63 @@ export default function CharacterCreatorV2() {
       alert("Failed to save avatar");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleMintNFT = async () => {
+    // Check wallet connection
+    if (!isConnected) {
+      const connected = await connect();
+      if (!connected) {
+        alert("Please connect your wallet to mint an NFT");
+        return;
+      }
+    }
+
+    // Check correct network
+    if (!isCorrectChain) {
+      const switched = await switchToMantleNetwork();
+      if (!switched) {
+        alert("Please switch to Mantle Testnet to mint your character NFT");
+        return;
+      }
+    }
+
+    setMinting(true);
+    try {
+      // First save avatar to backend
+      if (user?.address) {
+        await fetch("http://localhost:4000/profile", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ address: user.address, avatar }),
+        });
+      }
+
+      // Then mint NFT on blockchain
+      const result = await mintCharacter(avatar);
+      
+      setMintSuccess(true);
+      setTxHash(result.txHash);
+      
+      // Show success message
+      setTimeout(() => {
+        setMintSuccess(false);
+      }, 10000);
+      
+    } catch (err) {
+      console.error("Mint error:", err);
+      
+      // Parse error messages
+      if (err.message.includes("Already owns a character")) {
+        alert("You already own a character NFT! Each wallet can only mint one character.");
+      } else if (err.code === 4001) {
+        alert("Transaction cancelled");
+      } else {
+        alert(`Failed to mint NFT: ${err.message}`);
+      }
+    } finally {
+      setMinting(false);
     }
   };
 
@@ -204,24 +266,58 @@ export default function CharacterCreatorV2() {
               <CharacterPreview avatar={avatar} />
             </div>
             
-            <div className="flex gap-3 justify-center">
+            <div className="flex flex-col gap-3">
+              <div className="flex gap-3 justify-center">
+                <button
+                  onClick={clearAvatar}
+                  className="px-6 py-3 bg-gradient-to-br from-red-500 to-red-700 text-white rounded-xl font-black hover:from-red-600 hover:to-red-800 transition shadow-xl border-4 border-red-800 hover:scale-105 transform text-lg"
+                >
+                  🗑️ CLEAR
+                </button>
+                <button
+                  onClick={saveAvatar}
+                  disabled={loading || !user}
+                  className={`px-6 py-3 rounded-xl font-black transition shadow-xl border-4 hover:scale-105 transform text-lg ${
+                    saved 
+                      ? "bg-gradient-to-br from-green-500 to-green-700 text-white border-green-800"
+                      : "bg-gradient-to-br from-blue-500 to-blue-700 text-white hover:from-blue-600 hover:to-blue-800 border-blue-800"
+                  } ${loading ? "opacity-50" : ""}`}
+                >
+                  {saved ? "✓ SAVED!" : loading ? "⏳ SAVING..." : "💾 CONFIRM"}
+                </button>
+              </div>
+              
+              {/* Mint NFT Button */}
               <button
-                onClick={clearAvatar}
-                className="px-6 py-3 bg-gradient-to-br from-red-500 to-red-700 text-white rounded-xl font-black hover:from-red-600 hover:to-red-800 transition shadow-xl border-4 border-red-800 hover:scale-105 transform text-lg"
+                onClick={handleMintNFT}
+                disabled={minting}
+                className={`w-full px-6 py-4 rounded-xl font-black transition shadow-2xl border-4 hover:scale-105 transform text-lg ${
+                  mintSuccess
+                    ? "bg-gradient-to-br from-green-400 to-green-600 text-white border-green-800 animate-pulse"
+                    : minting
+                    ? "bg-gradient-to-br from-yellow-400 to-yellow-600 text-white border-yellow-800 opacity-75"
+                    : "bg-gradient-to-br from-purple-500 to-pink-600 text-white hover:from-purple-600 hover:to-pink-700 border-purple-800"
+                }`}
               >
-                🗑️ CLEAR
+                {mintSuccess ? "✓ NFT MINTED!" : minting ? "⏳ MINTING..." : "🎨 MINT CHARACTER NFT"}
               </button>
-              <button
-                onClick={saveAvatar}
-                disabled={loading || !user}
-                className={`px-6 py-3 rounded-xl font-black transition shadow-xl border-4 hover:scale-105 transform text-lg ${
-                  saved 
-                    ? "bg-gradient-to-br from-green-500 to-green-700 text-white border-green-800"
-                    : "bg-gradient-to-br from-blue-500 to-blue-700 text-white hover:from-blue-600 hover:to-blue-800 border-blue-800"
-                } ${loading ? "opacity-50" : ""}`}
-              >
-                {saved ? "✓ SAVED!" : loading ? "⏳ SAVING..." : "💾 CONFIRM"}
-              </button>
+              
+              {/* Success message with transaction link */}
+              {mintSuccess && txHash && (
+                <div className="bg-green-100 border-4 border-green-500 rounded-xl p-4 animate-fade-in">
+                  <p className="text-green-800 font-bold text-center mb-2">
+                    🎉 Character NFT Minted Successfully!
+                  </p>
+                  <a
+                    href={`https://explorer.sepolia.mantle.xyz/tx/${txHash}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-purple-700 underline hover:text-purple-900 text-sm block text-center"
+                  >
+                    View on Explorer →
+                  </a>
+                </div>
+              )}
             </div>
           </div>
 

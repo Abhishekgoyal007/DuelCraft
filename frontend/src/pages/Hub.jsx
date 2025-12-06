@@ -3,6 +3,7 @@ import { useAuth } from "../context/AuthContext";
 import { useEffect, useState } from "react";
 
 import { CHARACTER_LAYERS, LAYER_ORDER, DEFAULT_AVATAR } from "../config/characterConfig";
+import { getCharacter, getCharacterImage, getCharacterName } from "../config/characters";
 
 function AvatarPreview({ avatar }) {
   // Check if user has customized their avatar (not just defaults)
@@ -85,6 +86,7 @@ function AvatarPreview({ avatar }) {
 export default function Hub() {
   const { user } = useAuth();
   const [avatar, setAvatar] = useState(null);
+  const [selectedCharacter, setSelectedCharacter] = useState(null);
   const [coins, setCoins] = useState(0);
   const [stats, setStats] = useState({ wins: 0, losses: 0 });
 
@@ -95,6 +97,7 @@ export default function Hub() {
         const res = await fetch(`http://localhost:4000/profile?address=${user.address}`);
         const data = await res.json();
         if (data?.avatar) setAvatar(data.avatar);
+        if (data?.selectedCharacter) setSelectedCharacter(data.selectedCharacter);
         if (data?.coins !== undefined) setCoins(data.coins);
         if (data?.stats) setStats(data.stats);
       } catch (err) {
@@ -182,7 +185,7 @@ export default function Hub() {
                 
                 <Link to="/creator" className="group">
                   <div className="bg-gradient-to-br from-yellow-400 to-yellow-600 p-8 rounded-2xl text-white shadow-2xl hover:shadow-3xl transition-all hover:scale-105 border-4 border-yellow-700 transform hover:-translate-y-2">
-                    <div className="text-5xl mb-3 animate-spin-slow">✨</div>
+                    <div className="text-5xl mb-3">✨</div>
                     <div className="text-2xl font-black drop-shadow-md">CREATE FIGHTER</div>
                     <div className="text-yellow-200 font-semibold">Customize your champion!</div>
                   </div>
@@ -231,9 +234,39 @@ export default function Hub() {
             </div>
 
             {/* Avatar preview */}
-            <div className="w-full lg:w-80">
+            <div className="mt-10 w-full lg:w-80">
               <div className="text-lg font-black text-amber-900 mb-4 drop-shadow">YOUR FIGHTER</div>
-              <AvatarPreview avatar={avatar} />
+              {selectedCharacter ? (
+                <div 
+                  className="h-64 w-full rounded-xl flex items-center justify-center shadow-lg relative overflow-hidden"
+                  style={{ background: "linear-gradient(135deg, #87CEEB 0%, #90EE90 100%)" }}
+                >
+                  <div className="absolute bottom-0 left-0 right-0 h-12 bg-green-500" />
+                  <div className="absolute bottom-0 left-0 right-0 h-4 bg-green-700" />
+                  <div className="text-center relative z-10">
+                    {getCharacterImage(selectedCharacter) && (
+                      <img 
+                        src={getCharacterImage(selectedCharacter)} 
+                        alt={getCharacterName(selectedCharacter)}
+                        className="w-48 h-48 mx-auto mb-2 object-contain"
+                        style={{ imageRendering: 'pixelated' }}
+                        onError={(e) => {
+                          // Fallback to icon if image fails to load
+                          e.target.style.display = 'none';
+                        }}
+                      />
+                    )}
+                    <p className="text-amber-900 font-black text-2xl drop-shadow-lg">
+                      {getCharacterName(selectedCharacter).toUpperCase()}
+                    </p>
+                    <p className="text-amber-700 font-bold text-sm mt-1">
+                      {getCharacter(selectedCharacter)?.description || 'Ready for battle!'}
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <AvatarPreview avatar={avatar} />
+              )}
               <Link to="/creator">
                 <button className="mt-4 w-full py-3 bg-gradient-to-r from-blue-500 to-blue-700 text-white font-black rounded-xl hover:from-blue-600 hover:to-blue-800 transition shadow-xl text-lg border-4 border-blue-800 transform hover:scale-105">
                   ✏️ EDIT CHARACTER

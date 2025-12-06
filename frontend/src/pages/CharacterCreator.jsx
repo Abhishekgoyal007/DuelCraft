@@ -3,85 +3,10 @@ import { useState, useEffect } from "react";
 import Navbar from "../components/Navbar";
 import { useAuth } from "../context/AuthContext";
 import { Link } from "react-router-dom";
-// import LayeredCharacterPreview from "../components/LayeredCharacterPreview";
+import { CHARACTER_LIST } from "../config/characters";
 
-// Pre-made characters to select from
-// MINIMAL EXAMPLE: Only warrior and mage use PNG layers
-const PREMADE_CHARACTERS = [
-  {
-    id: 'char_warrior',
-    name: 'Warrior',
-    icon: '⚔️',
-    avatar: { color: '#ff6b6b', bodyShape: 'square' },
-    description: 'Strong melee fighter - PNG layers'
-  },
-  {
-    id: 'char_mage',
-    name: 'Mage',
-    icon: '🔮',
-    avatar: { color: '#6b9eff', bodyShape: 'round' },
-    description: 'Magic wielder - PNG layers'
-  }
-  // Other characters below use procedural generation
-  /*
-  {
-    id: 'char_rogue',
-    name: 'Rogue',
-    icon: '🗡️',
-    avatar: { color: '#6ee7b7', bodyShape: 'square' },
-    description: 'Fast and agile'
-  },
-  {
-    id: 'char_tank',
-    name: 'Tank',
-    icon: '🛡️',
-    avatar: { color: '#a78bfa', bodyShape: 'square' },
-    description: 'High defense'
-  },
-  {
-    id: 'char_archer',
-    name: 'Archer',
-    icon: '🏹',
-    avatar: { color: '#fbbf24', bodyShape: 'round' },
-    description: 'Ranged specialist'
-  },
-  {
-    id: 'char_assassin',
-    name: 'Assassin',
-    icon: '🥷',
-    avatar: { color: '#1f2937', bodyShape: 'square' },
-    description: 'Silent and deadly'
-  },
-  {
-    id: 'char_paladin',
-    name: 'Paladin',
-    icon: '✨',
-    avatar: { color: '#FFD700', bodyShape: 'square' },
-    description: 'Holy warrior'
-  },
-  {
-    id: 'char_ninja',
-    name: 'Ninja',
-    icon: '🌙',
-    avatar: { color: '#4B0082', bodyShape: 'square' },
-    description: 'Shadow master'
-  },
-  {
-    id: 'char_berserker',
-    name: 'Berserker',
-    icon: '💀',
-    avatar: { color: '#DC143C', bodyShape: 'square' },
-    description: 'Rage fighter'
-  },
-  {
-    id: 'char_monk',
-    name: 'Monk',
-    icon: '🙏',
-    avatar: { color: '#FF8C00', bodyShape: 'round' },
-    description: 'Martial artist'
-  }
-  */
-];
+// Use characters from config
+const PREMADE_CHARACTERS = CHARACTER_LIST;
 
 export default function CharacterCreator() {
   const auth = useAuth();
@@ -197,11 +122,11 @@ export default function CharacterCreator() {
                   <div className="flex gap-2">
                     <div 
                       className="w-16 h-16 rounded-lg border-3 border-amber-800" 
-                      style={{ backgroundColor: selectedCharData.avatar.color }}
+                      style={{ backgroundColor: selectedCharData.color }}
                     />
                     <div className="text-sm text-amber-700">
-                      <div>Color: {selectedCharData.avatar.color}</div>
-                      <div>Shape: {selectedCharData.avatar.bodyShape}</div>
+                      <div>Color: {selectedCharData.color}</div>
+                      <div>Stats Ready</div>
                     </div>
                   </div>
                 </div>
@@ -240,7 +165,7 @@ export default function CharacterCreator() {
                     <div className="text-xs text-amber-700 text-center mb-2">{char.description}</div>
                     <div 
                       className="w-full h-8 rounded-lg border-2 border-amber-800" 
-                      style={{ backgroundColor: char.avatar.color }}
+                      style={{ backgroundColor: char.color }}
                     />
                     
                     {isSelected && (

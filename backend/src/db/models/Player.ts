@@ -42,6 +42,7 @@ export interface IPlayer extends Document {
     losses: number;
     totalMatches: number;
   };
+  selectedCharacter?: string; // char_warrior or char_mage
   nonce: string; // for wallet signature verification
   createdAt: Date;
   updatedAt: Date;
@@ -100,6 +101,10 @@ const PlayerSchema = new Schema<IPlayer>(
       wins: { type: Number, default: 0 },
       losses: { type: Number, default: 0 },
       totalMatches: { type: Number, default: 0 },
+    },
+    selectedCharacter: {
+      type: String,
+      default: null,
     },
     nonce: {
       type: String,

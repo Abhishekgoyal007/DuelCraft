@@ -6,11 +6,14 @@ import router from "./router";
 import "./index.css";
 
 import { AuthProvider } from "./context/AuthContext";
+import { Web3Provider } from "./context/Web3Context";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <AuthProvider>
-      <RouterProvider router={router} />
+      <Web3Provider>
+        <RouterProvider router={router} />
+      </Web3Provider>
     </AuthProvider>
   </React.StrictMode>
 );

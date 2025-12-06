@@ -1,0 +1,27 @@
+{
+  "name": "duelcraft-contracts",
+  "version": "1.0.0",
+  "description": "DuelCraft Smart Contracts for Mantle Network",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "deploy:testnet": "hardhat run scripts/deploy.js --network mantleTestnet",
+    "deploy:mainnet": "hardhat run scripts/deploy.js --network mantleMainnet",
+    "verify:testnet": "hardhat verify --network mantleTestnet",
+    "verify:mainnet": "hardhat verify --network mantleMainnet",
+    "authorize": "hardhat run scripts/authorize-server.js --network mantleTestnet",
+    "export-abis": "node scripts/export-abis.js",
+    "console:testnet": "hardhat console --network mantleTestnet",
+    "console:local": "hardhat console --network localhost",
+    "node": "hardhat node"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^4.0.0",
+    "@nomicfoundation/hardhat-verify": "^2.0.0",
+    "hardhat": "^2.19.4"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.0.1",
+    "dotenv": "^16.3.1"
+  }
+}
