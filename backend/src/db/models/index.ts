@@ -2,3 +2,4 @@
 export { Player, IPlayer, IAvatar, IPurchase } from "./Player";
 export { MatchHistory, IMatchHistory, IMatchPlayer } from "./MatchHistory";
 export { ShopItem, IShopItem } from "./ShopItem";
+export { Asset, IAsset } from "./Asset";

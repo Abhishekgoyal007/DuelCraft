@@ -3,149 +3,285 @@ import { useState, useEffect } from "react";
 import Navbar from "../components/Navbar";
 import { useAuth } from "../context/AuthContext";
 import { Link } from "react-router-dom";
+// import LayeredCharacterPreview from "../components/LayeredCharacterPreview";
 
-const BODY_OPTIONS = ["square", "round", "tall"];
-const HAIR_OPTIONS = ["spiky", "short", "bald", "long"];
-const FACE_OPTIONS = ["smile", "angry", "neutral"];
-const COLOR_OPTIONS = ["#66c2ff", "#ffb86b", "#7b61ff", "#6ee7b7"];
+// Pre-made characters to select from
+// MINIMAL EXAMPLE: Only warrior and mage use PNG layers
+const PREMADE_CHARACTERS = [
+  {
+    id: 'char_warrior',
+    name: 'Warrior',
+    icon: '⚔️',
+    avatar: { color: '#ff6b6b', bodyShape: 'square' },
+    description: 'Strong melee fighter - PNG layers'
+  },
+  {
+    id: 'char_mage',
+    name: 'Mage',
+    icon: '🔮',
+    avatar: { color: '#6b9eff', bodyShape: 'round' },
+    description: 'Magic wielder - PNG layers'
+  }
+  // Other characters below use procedural generation
+  /*
+  {
+    id: 'char_rogue',
+    name: 'Rogue',
+    icon: '🗡️',
+    avatar: { color: '#6ee7b7', bodyShape: 'square' },
+    description: 'Fast and agile'
+  },
+  {
+    id: 'char_tank',
+    name: 'Tank',
+    icon: '🛡️',
+    avatar: { color: '#a78bfa', bodyShape: 'square' },
+    description: 'High defense'
+  },
+  {
+    id: 'char_archer',
+    name: 'Archer',
+    icon: '🏹',
+    avatar: { color: '#fbbf24', bodyShape: 'round' },
+    description: 'Ranged specialist'
+  },
+  {
+    id: 'char_assassin',
+    name: 'Assassin',
+    icon: '🥷',
+    avatar: { color: '#1f2937', bodyShape: 'square' },
+    description: 'Silent and deadly'
+  },
+  {
+    id: 'char_paladin',
+    name: 'Paladin',
+    icon: '✨',
+    avatar: { color: '#FFD700', bodyShape: 'square' },
+    description: 'Holy warrior'
+  },
+  {
+    id: 'char_ninja',
+    name: 'Ninja',
+    icon: '🌙',
+    avatar: { color: '#4B0082', bodyShape: 'square' },
+    description: 'Shadow master'
+  },
+  {
+    id: 'char_berserker',
+    name: 'Berserker',
+    icon: '💀',
+    avatar: { color: '#DC143C', bodyShape: 'square' },
+    description: 'Rage fighter'
+  },
+  {
+    id: 'char_monk',
+    name: 'Monk',
+    icon: '🙏',
+    avatar: { color: '#FF8C00', bodyShape: 'round' },
+    description: 'Martial artist'
+  }
+  */
+];
 
 export default function CharacterCreator() {
   const auth = useAuth();
   const user = auth?.user ?? null;
 
-  const [body, setBody] = useState(BODY_OPTIONS[0]);
-  const [hair, setHair] = useState(HAIR_OPTIONS[0]);
-  const [face, setFace] = useState(FACE_OPTIONS[0]);
-  const [color, setColor] = useState(COLOR_OPTIONS[0]);
+  const [selectedCharacter, setSelectedCharacter] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
+  // Load player's selected character on mount
   useEffect(() => {
-    // fetch existing profile when mounted
-    async function fetchProfile() {
+    async function loadCharacter() {
       if (!user?.address) return;
+      setLoading(true);
       try {
         const res = await fetch(`http://localhost:4000/profile?address=${user.address}`);
         const data = await res.json();
-        if (data?.avatar) {
-          const a = data.avatar;
-          setBody(a.body || BODY_OPTIONS[0]);
-          setHair(a.hair || HAIR_OPTIONS[0]);
-          setFace(a.face || FACE_OPTIONS[0]);
-          setColor(a.color || COLOR_OPTIONS[0]);
+        if (data?.selectedCharacter) {
+          setSelectedCharacter(data.selectedCharacter);
         }
       } catch (err) {
-        console.warn("couldn't fetch profile", err);
+        console.error("Failed to load character:", err);
+      } finally {
+        setLoading(false);
       }
     }
-    fetchProfile();
+    loadCharacter();
   }, [user]);
 
-  async function save() {
+  // Select a character
+  function selectCharacter(charId) {
+    setSelectedCharacter(charId);
+    setSaved(false);
+  }
+
+  // Save selected character to backend
+  async function saveCharacter() {
     if (!user?.address) {
       alert("Please connect wallet first");
       return;
     }
-    setLoading(true);
-    const avatar = { body, hair, face, color };
+    if (!selectedCharacter) {
+      alert("Please select a character first");
+      return;
+    }
+    setSaving(true);
     try {
-      const res = await fetch("http://localhost:4000/profile", {
+      console.log('[CharacterCreator] Saving character:', selectedCharacter);
+      const res = await fetch(`http://localhost:4000/api/player/${user.address}/select-character`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ address: user.address, avatar })
+        body: JSON.stringify({ characterId: selectedCharacter })
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "save failed");
+      console.log('[CharacterCreator] Save response:', data);
+      if (!res.ok) throw new Error(data.error || "Save failed");
       setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
+      setTimeout(() => setSaved(false), 3000);
     } catch (err) {
-      console.error(err);
-      alert("Save failed");
+      console.error('[CharacterCreator] Save error:', err);
+      alert("Save failed: " + err.message);
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   }
 
-  // very simple preview renderer (can be swapped for canvas)
-  function renderPreview() {
-    const bg = color;
+  const selectedCharData = PREMADE_CHARACTERS.find(c => c.id === selectedCharacter);
+
+  if (loading) {
     return (
-      <div className="w-full h-64 flex items-center justify-center" style={{ background: "linear-gradient(180deg,#fff 0%, #f7fbff 100%)" }}>
-        <div style={{ width: 140, height: 140, background: bg, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: body === "round" ? 999 : 6 }}>
-          {/* hair box */}
-          <div style={{ position: "absolute", top: 54, width: 100, height: body === "tall" ? 60 : 40, background: "#111", borderRadius: 6 }}></div>
-          {/* face mark */}
-          <div style={{ position: "relative", zIndex: 5, color: "#fff" }}>{face}</div>
+      <div className="min-h-screen flex flex-col bg-gradient-to-b from-sky-300 via-sky-400 to-emerald-500">
+        <Navbar />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-white text-xl animate-pulse">Loading assets...</div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-gradient-to-b from-sky-300 via-sky-400 to-emerald-500">
       <Navbar />
-      <main className="max-w-5xl mx-auto px-6 py-10">
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-2xl font-semibold mb-4">Character Creator</h2>
-          <p className="text-sm text-slate-500 mb-6">Pick the look for your DuelCraft avatar and save to your profile (wallet required).</p>
+      <main className="flex-1 max-w-6xl mx-auto px-6 py-8 w-full">
+        {/* Header */}
+        <div className="text-center mb-6">
+          <h1 className="text-3xl font-bold text-white drop-shadow-lg mb-2" 
+              style={{ fontFamily: "'Press Start 2P', system-ui" }}>
+            ⚔️ Character Selection ⚔️
+          </h1>
+          <p className="text-white/80 text-sm">Choose your fighter</p>
+        </div>
 
-          <div className="grid grid-cols-3 gap-6">
-            <div className="col-span-2">
-              <div className="mb-4">{renderPreview()}</div>
-
-              <div className="grid grid-cols-3 gap-3 mb-4">
+        <div className="max-w-4xl mx-auto">
+          {/* Selected Character Preview */}
+          {selectedCharData && (
+            <div className="bg-amber-100 border-4 border-amber-800 rounded-xl p-6 shadow-lg mb-6">
+              <h3 className="text-center font-bold text-amber-900 mb-4 text-xl">Selected Character</h3>
+              <div className="flex items-center justify-center gap-6">
+                {selectedCharData.image ? (
+                  <img 
+                    src={selectedCharData.image} 
+                    alt={selectedCharData.name}
+                    className="w-32 h-32 object-contain"
+                    style={{ imageRendering: 'pixelated' }}
+                  />
+                ) : (
+                  <div className="text-8xl">{selectedCharData.icon}</div>
+                )}
                 <div>
-                  <div className="text-xs font-medium mb-2">Body</div>
+                  <h4 className="text-2xl font-bold text-amber-900 mb-2">{selectedCharData.name}</h4>
+                  <p className="text-amber-700 mb-4">{selectedCharData.description}</p>
                   <div className="flex gap-2">
-                    {BODY_OPTIONS.map(o => (
-                      <button key={o} onClick={() => setBody(o)} className={`px-3 py-1 rounded ${body===o ? 'bg-accent text-white' : 'bg-slate-100'}`}>{o}</button>
-                    ))}
+                    <div 
+                      className="w-16 h-16 rounded-lg border-3 border-amber-800" 
+                      style={{ backgroundColor: selectedCharData.avatar.color }}
+                    />
+                    <div className="text-sm text-amber-700">
+                      <div>Color: {selectedCharData.avatar.color}</div>
+                      <div>Shape: {selectedCharData.avatar.bodyShape}</div>
+                    </div>
                   </div>
                 </div>
-
-                <div>
-                  <div className="text-xs font-medium mb-2">Hair</div>
-                  <div className="flex gap-2">
-                    {HAIR_OPTIONS.map(o => (
-                      <button key={o} onClick={() => setHair(o)} className={`px-3 py-1 rounded ${hair===o ? 'bg-accent text-white' : 'bg-slate-100'}`}>{o}</button>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <div className="text-xs font-medium mb-2">Face</div>
-                  <div className="flex gap-2">
-                    {FACE_OPTIONS.map(o => (
-                      <button key={o} onClick={() => setFace(o)} className={`px-3 py-1 rounded ${face===o ? 'bg-accent text-white' : 'bg-slate-100'}`}>{o}</button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              <div className="mb-4">
-                <div className="text-xs font-medium mb-2">Color</div>
-                <div className="flex gap-2">
-                  {COLOR_OPTIONS.map(c => (
-                    <button key={c} onClick={() => setColor(c)} style={{ background: c }} className={`w-10 h-8 rounded ${color===c ? 'ring-4 ring-offset-2 ring-accent' : ''}`} />
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex gap-3">
-                <button onClick={save} disabled={loading} className="px-4 py-2 bg-accent text-white rounded">
-                  {loading ? "Saving..." : "Save Character"}
-                </button>
-                <Link to="/hub"><button className="px-3 py-2 border rounded">Back</button></Link>
-                {saved ? <div className="text-sm text-green-600 ml-2">Saved!</div> : null}
               </div>
             </div>
+          )}
 
-            <div className="p-4 border rounded">
-              <h4 className="font-medium mb-2">Preview Details</h4>
-              <div className="text-sm text-slate-600">Body: {body}</div>
-              <div className="text-sm text-slate-600">Hair: {hair}</div>
-              <div className="text-sm text-slate-600">Face: {face}</div>
-              <div className="text-sm text-slate-600">Color: <span className="inline-block w-4 h-4 align-middle" style={{background: color}}></span></div>
+          {/* Character Grid */}
+          <div className="bg-amber-100 border-4 border-amber-800 rounded-xl p-6 shadow-lg">
+            <h3 className="text-center font-bold text-amber-900 mb-4 text-lg">Select Your Character</h3>
+            
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+              {PREMADE_CHARACTERS.map(char => {
+                const isSelected = selectedCharacter === char.id;
+                return (
+                  <button
+                    key={char.id}
+                    onClick={() => selectCharacter(char.id)}
+                    className={`relative p-4 rounded-xl border-4 transition-all transform hover:scale-105 ${
+                      isSelected
+                        ? 'border-green-500 bg-green-100 ring-4 ring-green-400 scale-105'
+                        : 'border-amber-300 bg-amber-50 hover:border-amber-500'
+                    }`}
+                  >
+                    {char.image ? (
+                      <img 
+                        src={char.image} 
+                        alt={char.name}
+                        className="w-24 h-24 mx-auto mb-2 object-contain"
+                        style={{ imageRendering: 'pixelated' }}
+                      />
+                    ) : (
+                      <div className="text-6xl mb-2 text-center">{char.icon}</div>
+                    )}
+                    <div className="text-center font-bold text-amber-900 mb-1">{char.name}</div>
+                    <div className="text-xs text-amber-700 text-center mb-2">{char.description}</div>
+                    <div 
+                      className="w-full h-8 rounded-lg border-2 border-amber-800" 
+                      style={{ backgroundColor: char.avatar.color }}
+                    />
+                    
+                    {isSelected && (
+                      <div className="absolute -top-2 -right-2 w-8 h-8 bg-green-500 rounded-full flex items-center justify-center text-white text-lg shadow-lg">
+                        ✓
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Save Button */}
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={saveCharacter}
+                disabled={saving || !user?.address || !selectedCharacter}
+                className={`w-full py-3 rounded-lg font-bold text-white transition-all transform hover:scale-105 ${
+                  saving || !selectedCharacter ? 'bg-gray-400' : 'bg-green-600 hover:bg-green-700 shadow-lg'
+                }`}
+              >
+                {saving ? '💾 Saving...' : '💾 Save Character'}
+              </button>
+              
+              {saved && (
+                <div className="text-center text-green-700 font-semibold animate-bounce-in">
+                  ✅ Character saved!
+                </div>
+              )}
+              
+              {!user?.address && (
+                <div className="text-center text-red-600 text-xs">
+                  Connect wallet to save
+                </div>
+              )}
+
+              <Link to="/hub" className="block">
+                <button className="w-full py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-semibold transition-colors">
+                  ← Back to Hub
+                </button>
+              </Link>
             </div>
           </div>
         </div>
@@ -153,3 +289,35 @@ export default function CharacterCreator() {
     </div>
   );
 }
+
+/* 
+===========================================
+COMMENTED OUT: LAYERED CHARACTER CREATOR
+===========================================
+This section contains the full character customization system with layered assets.
+We'll implement this later - for now we're using pre-made character selection.
+
+import LayeredCharacterPreview from "../components/LayeredCharacterPreview";
+
+const CATEGORIES = [
+  { id: 'body', label: 'Body', icon: '🧍' },
+  { id: 'hair', label: 'Hair', icon: '💇' },
+  { id: 'eyes', label: 'Eyes', icon: '👀' },
+  { id: 'mouth', label: 'Mouth', icon: '👄' },
+  { id: 'tops', label: 'Tops', icon: '👕' },
+  { id: 'bottoms', label: 'Bottoms', icon: '👖' },
+  { id: 'shoes', label: 'Shoes', icon: '👟' },
+  { id: 'accessory', label: 'Accessory', icon: '🎩' },
+  { id: 'effect', label: 'Effect', icon: '✨' },
+  { id: 'background', label: 'Background', icon: '🖼️' },
+];
+
+// TODO: Implement layered character creator with proper asset positioning
+// - Load assets from filesystem scanning
+// - Allow selecting individual body parts
+// - Preview with LayeredCharacterPreview component
+// - Save equipped assets to backend
+// - Render layered character in arena
+
+===========================================
+*/

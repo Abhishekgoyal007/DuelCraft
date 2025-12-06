@@ -3,6 +3,8 @@ import { Router } from "express";
 import { randomBytes } from "crypto";
 import jwt from "jsonwebtoken";
 import { getAddress } from "ethers";
+import { Player } from "./db/models";
+import { isDBConnected } from "./db/connection";
 
 const router = Router();
 
@@ -52,6 +54,19 @@ router.post("/login", async (req, res) => {
   }
 
   if (recovered && normalizeAddress(recovered) === address) {
+    // Ensure player exists in DB (create if not)
+    if (isDBConnected()) {
+      try {
+        const existing = await Player.findOne({ walletAddress: address.toLowerCase() });
+        if (!existing) {
+          await Player.create({ walletAddress: address.toLowerCase() });
+          console.log(`[auth] Created new player: ${address.toLowerCase()}`);
+        }
+      } catch (err) {
+        console.error("[auth] Failed to ensure player exists:", err);
+      }
+    }
+    
     const user = { address, createdAt: Date.now() };
     const token = jwt.sign({ address }, JWT_SECRET, { expiresIn: JWT_EXPIRES });
     delete nonces[address];

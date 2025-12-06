@@ -14,12 +14,25 @@ export interface IPurchase {
   price: number;
 }
 
+// Equipped asset IDs - references to Asset.assetId
+export interface IEquipped {
+  body?: string;      // assetId for body
+  hair?: string;      // assetId for hair
+  eyes?: string;      // assetId for eyes
+  tops?: string;      // assetId for top clothing
+  bottoms?: string;   // assetId for bottom clothing
+  shoes?: string;     // assetId for shoes
+  effect?: string;    // assetId for special effect
+}
+
 export interface IPlayer extends Document {
   walletAddress: string;
   avatar: IAvatar;
+  equipped: IEquipped;  // NEW: equipped asset IDs
   coins: number;
   purchases: IPurchase[];
-  ownedSkins: string[]; // skin IDs the player owns
+  ownedAssets: string[]; // asset IDs the player owns (purchased or earned)
+  ownedSkins: string[]; // legacy - shop item IDs
   settings: {
     soundEnabled?: boolean;
     musicEnabled?: boolean;
@@ -49,6 +62,16 @@ const PlayerSchema = new Schema<IPlayer>(
       face: { type: String, default: "smile" },
       color: { type: String, default: "#66c2ff" },
     },
+    // NEW: Equipped assets (references Asset.assetId)
+    equipped: {
+      body: { type: String, default: "body_default" },
+      hair: { type: String, default: "hair_default" },
+      eyes: { type: String, default: "eyes_default" },
+      tops: { type: String, default: "tops_default" },
+      bottoms: { type: String, default: "bottoms_default" },
+      shoes: { type: String, default: null },
+      effect: { type: String, default: null },
+    },
     coins: {
       type: Number,
       default: 100, // starting coins
@@ -61,6 +84,10 @@ const PlayerSchema = new Schema<IPlayer>(
         price: Number,
       },
     ],
+    ownedAssets: {
+      type: [String],
+      default: [],
+    },
     ownedSkins: {
       type: [String],
       default: [],

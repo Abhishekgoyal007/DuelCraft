@@ -44,6 +44,9 @@ export function AuthProvider({ children }) {
       };
       setUser(newUser);
       
+      // Store to localStorage so Arena can access it
+      localStorage.setItem("duelcraft_address", address);
+      
       // Fetch profile after login
       await fetchProfile(address);
     } catch (err) {
@@ -55,6 +58,8 @@ export function AuthProvider({ children }) {
   function logout() {
     setUser(null);
     setProfile(null);
+    localStorage.removeItem("duelcraft_address");
+    localStorage.removeItem("duelcraft_jwt");
   }
 
   // Update profile (called after saving character)
@@ -66,6 +71,18 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     async function load() {
       try {
+        // First check localStorage
+        const storedAddr = localStorage.getItem("duelcraft_address");
+        if (storedAddr) {
+          setUser({
+            address: storedAddr,
+            short: shortAddress(storedAddr),
+          });
+          await fetchProfile(storedAddr);
+          return;
+        }
+        
+        // Then try MetaMask
         if (window.ethereum) {
           const provider = new BrowserProvider(window.ethereum);
           const accounts = await provider.send("eth_accounts", []);
@@ -75,11 +92,14 @@ export function AuthProvider({ children }) {
               address,
               short: shortAddress(address),
             });
+            localStorage.setItem("duelcraft_address", address);
             // Also fetch profile on auto-load
             await fetchProfile(address);
           }
         }
-      } catch {}
+      } catch (e) {
+        console.warn("[AuthContext] Auto-load error:", e);
+      }
     }
     load();
   }, []);

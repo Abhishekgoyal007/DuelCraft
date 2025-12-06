@@ -1,8 +1,21 @@
 // backend/src/matchEngine.ts
 import WebSocket from "ws";
 import { v4 as uuidv4 } from "uuid";
-import { Player, MatchHistory } from "./db/models";
+import { Player, MatchHistory, Asset } from "./db/models";
 import { isDBConnected } from "./db/connection";
+
+export type EquippedAssets = {
+  body?: string;
+  hair?: string;
+  eyes?: string;
+  mouth?: string;
+  tops?: string;
+  bottoms?: string;
+  shoes?: string;
+  effect?: string;
+  accessory?: string;
+  background?: string;
+};
 
 export type PlayerProfile = {
   address?: string;
@@ -12,6 +25,8 @@ export type PlayerProfile = {
     face?: string;
     color?: string;
   };
+  equipped?: EquippedAssets;
+  equippedUrls?: Record<string, string>; // assetId -> url for rendering
 };
 
 export type Client = {
@@ -114,6 +129,23 @@ export class MatchEngine {
   unregisterClient(socket: WebSocket) {
     const id = (socket as any).__clientId;
     if (!id) return;
+    
+    // Check if client is in a match - handle disconnect forfeit
+    const client = this.clients.get(id);
+    if (client && client.status === "in_match") {
+      // Find the match this client is in
+      for (const [matchId, match] of this.matches.entries()) {
+        const isInMatch = match.players.some(p => p.id === id);
+        if (isInMatch) {
+          console.log(`[matchEngine] Player ${id} disconnected mid-match, auto-forfeiting`);
+          const opponent = match.players.find(p => p.id !== id);
+          const winnerId = opponent ? opponent.id : null;
+          this.endMatch(match, winnerId, "disconnect");
+          break;
+        }
+      }
+    }
+    
     this.clients.delete(id);
     const qpos = this.queue.indexOf(id);
     if (qpos >= 0) this.queue.splice(qpos, 1);
@@ -136,12 +168,31 @@ export class MatchEngine {
         // Capture profile from message if provided
         if (msg.auth?.address || msg.profile) {
           client.profile = {
-            address: msg.auth?.address,
-            avatar: msg.profile?.avatar
+            address: msg.auth?.address?.toLowerCase(),
+            avatar: msg.profile?.avatar,
+            equipped: msg.profile?.equipped || {},
+            selectedCharacter: msg.profile?.selectedCharacter,
+            characterImage: msg.profile?.characterImage
           };
-          console.log(`[matchEngine] Profile attached for ${id}:`, client.profile);
+          console.log(`[matchEngine] Profile attached for ${id}:`, JSON.stringify(client.profile));
+          
+          // Resolve equipped asset IDs to URLs for rendering, then enqueue
+          this.resolveEquippedUrls(client).then(() => {
+            console.log(`[matchEngine] Equipped URLs resolved for ${id}:`, client.profile?.equippedUrls);
+            this.enqueueClient(client);
+          }).catch(err => {
+            console.warn(`[matchEngine] Failed to resolve equipped URLs for ${id}:`, err);
+            this.enqueueClient(client); // Still enqueue even if URL resolution fails
+          });
+        } else {
+          console.log(`[matchEngine] WARNING: No auth/profile in join_queue from ${id}`);
+          this.enqueueClient(client);
         }
-        this.enqueueClient(client);
+        break;
+      case "join_ai":
+        // Start a match against AI bot for testing
+        console.log(`[matchEngine] ${id} wants to fight AI`);
+        this.createAIMatch(client);
         break;
       case "leave_queue":
         this.leaveQueue(client);
@@ -160,6 +211,32 @@ export class MatchEngine {
     }
   }
 
+  // Create a match against AI bot
+  createAIMatch(client: Client) {
+    if (client.status !== "idle") return;
+    
+    // Create a fake AI client
+    const aiClient: Client = {
+      id: "ai_bot_" + uuidv4().slice(0, 8),
+      socket: null as any, // AI doesn't have a real socket
+      lastSeen: Date.now(),
+      status: "in_match",
+      profile: {
+        address: "0xAI_BOT",
+        avatar: { body: "#ff0000", hair: "#333333", face: "#ffcc99" },
+        equipped: {}
+      }
+    };
+    
+    // Store AI client
+    this.clients.set(aiClient.id, aiClient);
+    
+    // Create match
+    this.createMatch(client, aiClient);
+    
+    console.log(`[matchEngine] AI match created: ${client.id} vs ${aiClient.id}`);
+  }
+
   enqueueClient(client: Client) {
     if (client.status !== "idle") return;
     if (!this.queue.includes(client.id)) this.queue.push(client.id);
@@ -172,6 +249,34 @@ export class MatchEngine {
     if (idx >= 0) {
       this.queue.splice(idx, 1);
       console.log(`[matchEngine] ${client.id} left queue`);
+    }
+  }
+
+  // Resolve equipped asset IDs to their CDN URLs for Phaser rendering
+  async resolveEquippedUrls(client: Client): Promise<void> {
+    if (!client.profile?.equipped) return;
+    
+    const equipped = client.profile.equipped;
+    const assetIds = Object.values(equipped).filter(Boolean) as string[];
+    
+    if (assetIds.length === 0) return;
+    
+    try {
+      // Fetch all equipped assets in one query
+      const assets = await Asset.find({ assetId: { $in: assetIds } }).lean();
+      
+      // Build a map of assetId -> url
+      const urlMap: Record<string, string> = {};
+      assets.forEach((asset: any) => {
+        urlMap[asset.assetId] = asset.url;
+      });
+      
+      // Store on client profile
+      client.profile.equippedUrls = urlMap;
+      
+      console.log(`[matchEngine] Resolved ${Object.keys(urlMap).length} asset URLs for client`);
+    } catch (err) {
+      console.error("[matchEngine] Error resolving equipped URLs:", err);
     }
   }
 
@@ -204,7 +309,7 @@ export class MatchEngine {
     // initial positions (left / right)
     const leftX = 150;
     const rightX = 650;
-    const groundY = 420; // y coordinate representing ground level
+    const groundY = 395; // y coordinate for platform surface (sprites have origin at bottom)
     const now = Date.now();
 
     const createPlayerState = (x: number, facingRight: boolean): PlayerState => ({
@@ -269,7 +374,8 @@ export class MatchEngine {
     this.safeSend(b.socket, payloadB);
   }
 
-  safeSend(sock: WebSocket, payload: any) {
+  safeSend(sock: WebSocket | null, payload: any) {
+    if (!sock) return; // AI bots have no socket
     try {
       sock.send(JSON.stringify(payload));
     } catch (err) {
@@ -279,11 +385,32 @@ export class MatchEngine {
 
   onClientInput(client: Client, msg: any) {
     // msg: { type:'input', matchId, tick, inputs: {left,right,up,attack,heavy,...} }
-    if (!msg || !msg.matchId) return;
+    if (!msg || !msg.matchId) {
+      console.log(`[input] REJECTED - no matchId from ${client.id}`);
+      return;
+    }
     const match = this.matches.get(msg.matchId);
-    if (!match) return;
+    if (!match) {
+      console.log(`[input] REJECTED - match ${msg.matchId} not found for ${client.id}`);
+      return;
+    }
+    
+    // Verify client is in this match
+    const isInMatch = match.players.some(p => p.id === client.id);
+    if (!isInMatch) {
+      console.log(`[input] REJECTED - client ${client.id} not in match ${msg.matchId}`);
+      return;
+    }
+    
     // store the latest input for this client (overwrites previous)
     match.inputs[client.id] = msg.inputs || {};
+    
+    // Debug: log movement/attack inputs
+    const inp = msg.inputs;
+    if (inp?.left || inp?.right || inp?.up || inp?.attack || inp?.heavy) {
+      console.log(`[input] ${client.id}: L=${inp.left} R=${inp.right} U=${inp.up} A=${inp.attack} H=${inp.heavy}`);
+    }
+    
     // acknowledge quickly
     this.safeSend(client.socket, { type: "input_ack", tick: msg.tick || 0 });
   }
@@ -321,18 +448,29 @@ export class MatchEngine {
     const attacker = match.state.players[attackerId];
     const defender = match.state.players[defenderId];
     
-    if (!attacker || !defender) return;
+    if (!attacker || !defender) {
+      console.log(`[processAttack] Missing player: attacker=${!!attacker}, defender=${!!defender}`);
+      return;
+    }
     
     const config = attackType === "punch" ? COMBAT.PUNCH : COMBAT.HEAVY;
     
     // Check cooldown
-    if (now < attacker.attackCooldown) return;
+    if (now < attacker.attackCooldown) {
+      return; // Still on cooldown, skip silently
+    }
     
     // Check if attacker is stunned
-    if (now < attacker.stunEndTime) return;
+    if (now < attacker.stunEndTime) {
+      return; // Stunned, skip silently
+    }
     
     // Check if already in an attack animation
-    if (attacker.attackState !== "none" && now < attacker.attackEndTime) return;
+    if (attacker.attackState !== "none" && now < attacker.attackEndTime) {
+      return; // Still attacking, skip silently
+    }
+    
+    console.log(`[processAttack] ${attackerId} performing ${attackType}!`);
     
     // Start attack animation
     attacker.attackState = attackType;
@@ -376,6 +514,65 @@ export class MatchEngine {
     }
   }
 
+  // Simple AI behavior
+  updateAIInputs(match: Match, now: number) {
+    for (const player of match.players) {
+      // Only process AI players (ids starting with "ai_bot_")
+      if (!player.id.startsWith("ai_bot_")) continue;
+      
+      const aiState = match.state.players[player.id];
+      const humanPlayer = match.players.find(p => !p.id.startsWith("ai_bot_"));
+      if (!humanPlayer || !aiState) continue;
+      
+      const humanState = match.state.players[humanPlayer.id];
+      if (!humanState) continue;
+      
+      // Calculate distance to human
+      const dx = humanState.x - aiState.x;
+      const distance = Math.abs(dx);
+      
+      // AI decision making
+      const inputs: any = {
+        left: false,
+        right: false,
+        up: false,
+        attack: false,
+        heavy: false
+      };
+      
+      // Move towards player if too far
+      if (distance > 100) {
+        inputs.left = dx < 0;
+        inputs.right = dx > 0;
+      }
+      // Back off if too close
+      else if (distance < 50) {
+        inputs.left = dx > 0;
+        inputs.right = dx < 0;
+      }
+      
+      // Attack when in range
+      if (distance < 80 && distance > 30) {
+        // Random attack timing
+        if (Math.random() < 0.15) {
+          inputs.attack = true;
+        }
+        // Occasionally use heavy attack
+        if (Math.random() < 0.05) {
+          inputs.heavy = true;
+        }
+      }
+      
+      // Jump occasionally to avoid attacks
+      if (Math.random() < 0.02 && aiState.grounded) {
+        inputs.up = true;
+      }
+      
+      // Store AI inputs
+      match.inputs[player.id] = inputs;
+    }
+  }
+
   tick() {
     const matchesToRemove: string[] = [];
     const now = Date.now();
@@ -389,6 +586,9 @@ export class MatchEngine {
       const dt = this.tickIntervalMs / 1000; // seconds per tick
       const playersState = match.state.players;
       const [pA, pB] = match.players;
+
+      // Generate AI inputs if one player is AI
+      this.updateAIInputs(match, now);
 
       // Process each player
       for (const p of match.players) {
@@ -457,6 +657,7 @@ export class MatchEngine {
         
         // Punch attack (Z key / attack input)
         if (inputs.attack && !inputs._attackApplied) {
+          console.log(`[tick] ${pid} attack button pressed, calling processAttack`);
           this.processAttack(match, pid, opponentId, "punch", now);
           inputs._attackApplied = true;
         }
@@ -466,6 +667,7 @@ export class MatchEngine {
         
         // Heavy attack (X key / heavy input)
         if (inputs.heavy && !inputs._heavyApplied) {
+          console.log(`[tick] ${pid} heavy button pressed, calling processAttack`);
           this.processAttack(match, pid, opponentId, "heavy", now);
           inputs._heavyApplied = true;
         }
@@ -532,8 +734,14 @@ export class MatchEngine {
     const winnerClient = match.players.find(p => p.id === winnerId);
     const loserClient = match.players.find(p => p.id !== winnerId);
     
+    // Debug: Log player profiles
+    console.log(`[matchEngine] Winner client profile:`, JSON.stringify(winnerClient?.profile));
+    console.log(`[matchEngine] Loser client profile:`, JSON.stringify(loserClient?.profile));
+    
     const winnerAddress = winnerClient?.profile?.address?.toLowerCase();
     const loserAddress = loserClient?.profile?.address?.toLowerCase();
+    
+    console.log(`[matchEngine] Winner address: ${winnerAddress}, Loser address: ${loserAddress}`);
     
     // Save match to DB and update player stats
     this.saveMatchResult(match, winnerId, winnerAddress, loserAddress, reason, COINS_FOR_WIN, COINS_FOR_LOSS);
@@ -569,6 +777,17 @@ export class MatchEngine {
     coinsForWin: number,
     coinsForLoss: number
   ) {
+    console.log(`[matchEngine] saveMatchResult called:`);
+    console.log(`  - winnerId: ${winnerId}`);
+    console.log(`  - winnerAddress: ${winnerAddress}`);
+    console.log(`  - loserAddress: ${loserAddress}`);
+    console.log(`  - DB connected: ${isDBConnected()}`);
+    
+    // Log all player profiles for debugging
+    match.players.forEach((p, i) => {
+      console.log(`  - Player ${i} (${p.id}): profile=${JSON.stringify(p.profile)}`);
+    });
+    
     if (!isDBConnected()) {
       console.log("[matchEngine] DB not connected, skipping match save");
       return;
@@ -597,9 +816,9 @@ export class MatchEngine {
         coinsAwarded: coinsForWin
       });
 
-      // Update winner stats and coins
+      // Update winner stats and coins (upsert to auto-create if missing)
       if (winnerAddress) {
-        await Player.findOneAndUpdate(
+        const winnerResult = await Player.findOneAndUpdate(
           { walletAddress: winnerAddress },
           { 
             $inc: { 
@@ -607,14 +826,21 @@ export class MatchEngine {
               "stats.wins": 1, 
               "stats.totalMatches": 1 
             } 
-          }
+          },
+          { new: true, upsert: true, setDefaultsOnInsert: true }
         );
-        console.log(`[matchEngine] Awarded ${coinsForWin} coins to winner ${winnerAddress}`);
+        if (winnerResult) {
+          console.log(`[matchEngine] ✓ Updated winner ${winnerAddress}: coins=${winnerResult.coins}, wins=${winnerResult.stats.wins}`);
+        } else {
+          console.log(`[matchEngine] ✗ Winner ${winnerAddress} update failed!`);
+        }
+      } else {
+        console.log(`[matchEngine] ✗ No winner address to update!`);
       }
 
-      // Update loser stats and coins
+      // Update loser stats and coins (upsert to auto-create if missing)
       if (loserAddress) {
-        await Player.findOneAndUpdate(
+        const loserResult = await Player.findOneAndUpdate(
           { walletAddress: loserAddress },
           { 
             $inc: { 
@@ -622,9 +848,16 @@ export class MatchEngine {
               "stats.losses": 1, 
               "stats.totalMatches": 1 
             } 
-          }
+          },
+          { new: true, upsert: true, setDefaultsOnInsert: true }
         );
-        console.log(`[matchEngine] Awarded ${coinsForLoss} coins to loser ${loserAddress}`);
+        if (loserResult) {
+          console.log(`[matchEngine] ✓ Updated loser ${loserAddress}: coins=${loserResult.coins}, losses=${loserResult.stats.losses}`);
+        } else {
+          console.log(`[matchEngine] ✗ Loser ${loserAddress} update failed!`);
+        }
+      } else {
+        console.log(`[matchEngine] ✗ No loser address to update!`);
       }
 
       console.log(`[matchEngine] Match ${match.id} saved to DB`);

@@ -1,0 +1,90 @@
+{
+  "version": "1.0.0",
+  "description": "Asset positioning manifest for layered character rendering",
+  "canvasSize": {
+    "width": 128,
+    "height": 128
+  },
+  "categories": {
+    "body": {
+      "anchor": { "x": 0.5, "y": 1.0 },
+      "offset": { "x": 0, "y": 0 },
+      "zIndex": 2,
+      "description": "Base body layer - feet should be at bottom center"
+    },
+    "eyes": {
+      "anchor": { "x": 0.5, "y": 0.3 },
+      "offset": { "x": 0, "y": -45 },
+      "zIndex": 6,
+      "description": "Eyes positioned relative to head (30% from top, 45px up from feet)"
+    },
+    "mouth": {
+      "anchor": { "x": 0.5, "y": 0.35 },
+      "offset": { "x": 0, "y": -40 },
+      "zIndex": 5,
+      "description": "Mouth below eyes"
+    },
+    "hair": {
+      "anchor": { "x": 0.5, "y": 0.2 },
+      "offset": { "x": 0, "y": -50 },
+      "zIndex": 8,
+      "description": "Hair on top of head"
+    },
+    "tops": {
+      "anchor": { "x": 0.5, "y": 0.6 },
+      "offset": { "x": 0, "y": -20 },
+      "zIndex": 4,
+      "description": "Shirt/top covering torso"
+    },
+    "bottoms": {
+      "anchor": { "x": 0.5, "y": 0.8 },
+      "offset": { "x": 0, "y": -10 },
+      "zIndex": 3,
+      "description": "Pants/bottoms on legs"
+    },
+    "shoes": {
+      "anchor": { "x": 0.5, "y": 1.0 },
+      "offset": { "x": 0, "y": 0 },
+      "zIndex": 3,
+      "description": "Shoes at feet level"
+    },
+    "accessory": {
+      "anchor": { "x": 0.5, "y": 0.3 },
+      "offset": { "x": 0, "y": -45 },
+      "zIndex": 9,
+      "description": "Accessories like hats, glasses on top"
+    },
+    "effect": {
+      "anchor": { "x": 0.5, "y": 0.5 },
+      "offset": { "x": 0, "y": -30 },
+      "zIndex": 10,
+      "description": "Special effects, auras around character"
+    },
+    "background": {
+      "anchor": { "x": 0.5, "y": 0.5 },
+      "offset": { "x": 0, "y": -30 },
+      "zIndex": 0,
+      "description": "Background layer behind character"
+    }
+  },
+  "guidelines": {
+    "creating_assets": [
+      "Use 128x128px transparent PNG canvas",
+      "Position character feet at bottom-center (64, 128)",
+      "Head should be around y=20-40",
+      "Keep consistent proportions across all parts",
+      "Eyes typically at y=35-45",
+      "Mouth at y=50-55",
+      "Export with transparency enabled"
+    ],
+    "anatomy_guide": {
+      "head_top": "y: 10-20",
+      "eyes": "y: 35-45",
+      "mouth": "y: 50-55",
+      "shoulders": "y: 60-70",
+      "torso": "y: 70-95",
+      "legs": "y: 95-115",
+      "feet": "y: 120-128"
+    }
+  }
+}

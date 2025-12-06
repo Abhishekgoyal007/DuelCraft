@@ -21,6 +21,13 @@ export default function PhaserArena({ match }) {
       height: 500,
       parent: "phaser-container",
       audio: { noAudio: true },
+      // Enable keyboard input capturing
+      input: {
+        keyboard: true,
+        mouse: true,
+        touch: true,
+        gamepad: false
+      },
       physics: {
         default: "arcade",
         arcade: { gravity: { y: 0 }, debug: false }
@@ -30,7 +37,7 @@ export default function PhaserArena({ match }) {
 
     gameRef.current = new Phaser.Game(config);
 
-    // small delay to ensure canvas is created, then adjust style
+    // small delay to ensure canvas is created, then adjust style and focus
     setTimeout(() => {
       try {
         const g = gameRef.current;
@@ -38,13 +45,20 @@ export default function PhaserArena({ match }) {
         if (canvas) {
           canvas.style.zIndex = "0";          // put canvas behind UI
           canvas.style.position = "relative"; // respects stacking context
-          // Do not disable pointer events because we may want in-game clicks later
-          // canvas.style.pointerEvents = "auto";
+          canvas.tabIndex = 1; // Make canvas focusable
+          
+          // Auto-focus the canvas so keyboard inputs work immediately
+          canvas.focus();
+          
+          // Click to focus hint - focus canvas when clicked
+          canvas.addEventListener("click", () => {
+            canvas.focus();
+          });
         }
       } catch (e) {
         // ignore if we can't access canvas immediately
       }
-    }, 50);
+    }, 100);
 
     return () => {
       if (gameRef.current) {

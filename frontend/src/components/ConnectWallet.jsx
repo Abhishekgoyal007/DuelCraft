@@ -1,21 +1,32 @@
 // frontend/src/components/ConnectWallet.jsx
-import { useState, useEffect } from "react";
-import { BrowserProvider, verifyMessage, getAddress } from "ethers";
+import { useState, useEffect, useRef } from "react";
+import { BrowserProvider } from "ethers";
 
 export default function ConnectWallet({ onLogin }) {
   const [address, setAddress] = useState(null);
   const [status, setStatus] = useState("idle");
   const [error, setError] = useState(null);
+  const onLoginRef = useRef(onLogin);
+  const hasInitialized = useRef(false);
 
+  // Keep ref updated
   useEffect(() => {
+    onLoginRef.current = onLogin;
+  }, [onLogin]);
+
+  // Auto-login from localStorage (only once)
+  useEffect(() => {
+    if (hasInitialized.current) return;
+    hasInitialized.current = true;
+    
     const token = localStorage.getItem("duelcraft_jwt");
     const addr = localStorage.getItem("duelcraft_address");
     if (token && addr) {
       setAddress(addr);
       setStatus("connected");
-      if (onLogin) onLogin({ address: addr, token });
+      if (onLoginRef.current) onLoginRef.current({ address: addr, token });
     }
-  }, [onLogin]);
+  }, []);
 
   async function connect() {
     setError(null);

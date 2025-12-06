@@ -50,7 +50,7 @@ const MatchHistorySchema = new Schema<IMatchHistory>(
     },
     endReason: {
       type: String,
-      enum: ["knockout", "timeout", "forfeit", "disconnect"],
+      enum: ["knockout", "timeout", "forfeit", "disconnect", "hp_depleted", "finished"],
       default: "knockout",
     },
     coinsAwarded: {
