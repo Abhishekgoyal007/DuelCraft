@@ -18,15 +18,34 @@ export default class ArenaScene extends Phaser.Scene {
   }
 
   preload() {
-    // Load character layers for warrior and mage
-    const characterTypes = ['warrior', 'mage'];
-    const layers = ['base', 'hair', 'clothing'];
+    // Load frame-by-frame animations for characters
+    const animations = {
+      'warrior': {
+        idle: 4,
+        walk: 4,
+        punch: 4,
+        heavy: 1, // Only 1 frame available
+        jump: 3
+      },
+      'mage': {
+        idle: 4,
+        walk: 4,
+        punch: 3,
+        heavy: 4,
+        jump: 3
+      }
+    };
     
-    characterTypes.forEach(charType => {
-      layers.forEach(layer => {
-        const key = `${charType}_${layer}`;
-        this.load.image(key, `/character-layers/${charType}/${layer}.png`);
-        console.log(`[ArenaScene] Loading: ${key} from /character-layers/${charType}/${layer}.png`);
+    // Load all animation frames
+    Object.keys(animations).forEach(charType => {
+      Object.keys(animations[charType]).forEach(animType => {
+        const frameCount = animations[charType][animType];
+        for (let i = 1; i <= frameCount; i++) {
+          const key = `${charType}_${animType}_${i}`;
+          const path = `/character-layers/${charType}/${animType}/frame${i}.png`;
+          this.load.image(key, path);
+          console.log(`[ArenaScene] Loading: ${key} from ${path}`);
+        }
       });
     });
     
@@ -35,7 +54,7 @@ export default class ArenaScene extends Phaser.Scene {
       console.error(`[ArenaScene] Failed to load: ${file.key} from ${file.url}`);
     });
     
-    console.log('[ArenaScene] Preloading character layer images...');
+    console.log('[ArenaScene] Preloading character animation frames...');
   }
 
   create() {
@@ -141,6 +160,9 @@ export default class ArenaScene extends Phaser.Scene {
 
     // Smoothing
     this.smooth = 0.3;
+
+    // Create character animations
+    this.createCharacterAnimations();
 
     // Load profiles
     this.loadMatchProfiles();
@@ -387,6 +409,58 @@ export default class ArenaScene extends Phaser.Scene {
     }).setOrigin(0.5, 0.5).setDepth(101);
   }
 
+  createCharacterAnimations() {
+    console.log('[ArenaScene] Creating character animations...');
+    
+    // Define animation configurations
+    const animConfigs = {
+      warrior: {
+        idle: { frames: 4, frameRate: 6, repeat: -1 },
+        walk: { frames: 4, frameRate: 8, repeat: -1 },
+        punch: { frames: 4, frameRate: 12, repeat: 0 },
+        heavy: { frames: 1, frameRate: 10, repeat: 0 },
+        jump: { frames: 3, frameRate: 8, repeat: 0 }
+      },
+      mage: {
+        idle: { frames: 4, frameRate: 6, repeat: -1 },
+        walk: { frames: 4, frameRate: 8, repeat: -1 },
+        punch: { frames: 3, frameRate: 12, repeat: 0 },
+        heavy: { frames: 4, frameRate: 10, repeat: 0 },
+        jump: { frames: 3, frameRate: 8, repeat: 0 }
+      }
+    };
+    
+    // Create animations for each character and animation type
+    Object.keys(animConfigs).forEach(charType => {
+      Object.keys(animConfigs[charType]).forEach(animType => {
+        const config = animConfigs[charType][animType];
+        const animKey = `${charType}_${animType}`;
+        
+        // Build frame array
+        const frames = [];
+        for (let i = 1; i <= config.frames; i++) {
+          const frameKey = `${charType}_${animType}_${i}`;
+          if (this.textures.exists(frameKey)) {
+            frames.push({ key: frameKey });
+          }
+        }
+        
+        // Create animation if we have frames
+        if (frames.length > 0 && !this.anims.exists(animKey)) {
+          this.anims.create({
+            key: animKey,
+            frames: frames,
+            frameRate: config.frameRate,
+            repeat: config.repeat
+          });
+          console.log(`[ArenaScene] ✓ Created animation: ${animKey} (${frames.length} frames, ${config.frameRate}fps)`);
+        } else if (frames.length === 0) {
+          console.warn(`[ArenaScene] ✗ No frames found for animation: ${animKey}`);
+        }
+      });
+    });
+  }
+
   loadMatchProfiles() {
     const match = window.currentMatch;
     console.log("[ArenaScene] loadMatchProfiles called with match:", match);
@@ -424,8 +498,8 @@ export default class ArenaScene extends Phaser.Scene {
     return charId;
   }
 
-  // Create layered character sprite from PNG files
-  createLayeredCharacter(pid, characterId) {
+  // Create animated character sprite
+  createAnimatedCharacter(pid, characterId) {
     // Map character IDs to folder names (char_warrior -> warrior)
     const charTypeMap = {
       'char_warrior': 'warrior',
@@ -433,76 +507,17 @@ export default class ArenaScene extends Phaser.Scene {
     };
     
     const charType = charTypeMap[characterId] || 'warrior';
-    const containerKey = `layered_${pid}_${characterId}`;
+    console.log(`[ArenaScene] Creating animated character: ${charType} for player ${pid}`);
     
-    console.log(`[ArenaScene] Creating layered character: ${charType} for player ${pid}`);
-    
-    // Check if at least the base layer exists, otherwise fall back to procedural
-    const baseTextureKey = `${charType}_base`;
-    if (!this.textures.exists(baseTextureKey)) {
-      console.warn(`[ArenaScene] PNG layers not found for ${charType}, falling back to procedural rendering`);
-      return this.createProceduralCharacter(pid, characterId);
+    // Check if idle animation exists for this character
+    const idleAnimKey = `${charType}_idle`;
+    if (!this.anims.exists(idleAnimKey)) {
+      console.warn(`[ArenaScene] Animation not found: ${idleAnimKey}, falling back to procedural`);
+      return { type: 'procedural', key: this.createProceduralCharacter(pid, characterId) };
     }
     
-    // Get texture dimensions from the first available texture
-    const firstTextureKey = `${charType}_base`;
-    const texture = this.textures.get(firstTextureKey);
-    const frame = texture.getSourceImage();
-    const originalWidth = frame.width || 64;
-    const originalHeight = frame.height || 64;
-    
-    // Target size for characters (64x64)
-    const targetSize = 64;
-    const scale = targetSize / Math.max(originalWidth, originalHeight);
-    const finalWidth = Math.round(originalWidth * scale);
-    const finalHeight = Math.round(originalHeight * scale);
-    
-    console.log(`[ArenaScene] Original texture: ${originalWidth}x${originalHeight}, scaling to: ${finalWidth}x${finalHeight} (scale: ${scale.toFixed(2)})`);
-    
-    // Create a render texture at the target size
-    const renderTexture = this.make.renderTexture({ width: targetSize, height: targetSize, add: false });
-    
-    // Center offset for smaller images
-    const offsetX = (targetSize - finalWidth) / 2;
-    const offsetY = (targetSize - finalHeight) / 2;
-    
-    // Stack layers in order: base -> hair -> clothing
-    const layers = ['base', 'hair', 'clothing'];
-    let layersDrawn = 0;
-    layers.forEach(layer => {
-      const textureKey = `${charType}_${layer}`;
-      if (this.textures.exists(textureKey)) {
-        const tex = this.textures.get(textureKey);
-        if (tex && tex.source && tex.source.length > 0) {
-          // Create a temporary sprite to scale the texture
-          const tempSprite = this.add.sprite(offsetX, offsetY, textureKey);
-          tempSprite.setOrigin(0, 0);
-          tempSprite.setScale(scale);
-          renderTexture.draw(tempSprite, offsetX, offsetY);
-          tempSprite.destroy();
-          console.log(`[ArenaScene] ✓ Drew layer: ${textureKey} at scale ${scale.toFixed(2)}`);
-          layersDrawn++;
-        } else {
-          console.warn(`[ArenaScene] ✗ Texture exists but invalid: ${textureKey}`);
-        }
-      } else {
-        console.warn(`[ArenaScene] ✗ Missing texture: ${textureKey}`);
-      }
-    });
-    
-    // If no layers were drawn, fall back to procedural
-    if (layersDrawn === 0) {
-      console.warn(`[ArenaScene] No PNG layers drawn, falling back to procedural rendering`);
-      renderTexture.destroy();
-      return this.createProceduralCharacter(pid, characterId);
-    }
-    
-    // Save the combined texture
-    renderTexture.saveTexture(containerKey);
-    renderTexture.destroy();
-    
-    console.log(`[ArenaScene] ✓ Created layered texture: ${containerKey} with ${layersDrawn} layers (${finalWidth}x${finalHeight})`);
-    return containerKey;
+    // Return character type info for sprite creation
+    return { type: 'animated', charType: charType };
   }
 
   // Create procedurally drawn character (warrior, mage, rogue, etc.)
@@ -1413,15 +1428,38 @@ export default class ArenaScene extends Phaser.Scene {
         const characterId = this.getCharacterIdForPlayer(pid);
         console.log(`[ArenaScene] Creating character for ${pid}, type: ${characterId}`);
         
-        // Create layered PNG character (base + hair + clothing)
-        const texKey = this.createLayeredCharacter(pid, characterId);
+        // Create animated character
+        const charInfo = this.createAnimatedCharacter(pid, characterId);
         
-        // Create sprite from generated texture
-        const sprite = this.add.sprite(startX, startY, texKey);
-        sprite.setOrigin(0.5, 1); // Bottom-center anchor
-        sprite.setDisplaySize(64, 64);
-        sprite.setDepth(200);
-        sprite.setFlipX(!(p.facingRight ?? true));
+        let sprite;
+        if (charInfo.type === 'animated') {
+          // Create sprite with first frame of idle animation
+          const firstFrameKey = `${charInfo.charType}_idle_1`;
+          sprite = this.add.sprite(startX, startY, firstFrameKey);
+          sprite.setOrigin(0.5, 1); // Bottom-center anchor
+          
+          // Force display size to exactly 64x64 pixels
+          sprite.setDisplaySize(64, 64);
+          
+          // CRITICAL: Lock the display size on every animation frame update
+          sprite.on('animationupdate', () => {
+            sprite.setDisplaySize(64, 64);
+          });
+          
+          sprite.setDepth(200);
+          sprite.setFlipX(!(p.facingRight ?? true));
+          
+          // Play idle animation
+          sprite.play(`${charInfo.charType}_idle`);
+          console.log(`[ArenaScene] ✓ Character created: ${charInfo.charType}, locked to 64x64px`);
+        } else {
+          // Fallback to procedural
+          sprite = this.add.sprite(startX, startY, charInfo.key);
+          sprite.setOrigin(0.5, 1);
+          sprite.setDisplaySize(64, 64);
+          sprite.setDepth(200);
+          sprite.setFlipX(!(p.facingRight ?? true));
+        }
         
         // Add floating name label
         const nameLabel = this.add.text(startX, startY - 80, isMyPlayer ? "YOU" : "ENEMY", { 
@@ -1437,7 +1475,9 @@ export default class ArenaScene extends Phaser.Scene {
           avatar, 
           isMyPlayer,
           isContainer: false,
-          facingRight: p.facingRight ?? true
+          facingRight: p.facingRight ?? true,
+          charType: charInfo.type === 'animated' ? charInfo.charType : null,
+          currentAnim: 'idle'
         };
       } else {
         // Update existing player
@@ -1584,6 +1624,41 @@ export default class ArenaScene extends Phaser.Scene {
     const prevState = player.currentState || "idle";
     player.currentState = serverState.attackState || "idle";
     
+    // Play frame-based animations if character has charType
+    if (player.charType && sprite.anims) {
+      const isMoving = Math.abs(serverState.vx) > 0.5;
+      const isJumping = serverState.vy < -1;
+      
+      let targetAnim = 'idle';
+      
+      // Determine which animation to play based on state
+      if (serverState.attackState === "punch") {
+        targetAnim = 'punch';
+      } else if (serverState.attackState === "heavy") {
+        targetAnim = 'heavy';
+      } else if (isJumping) {
+        targetAnim = 'jump';
+      } else if (isMoving) {
+        targetAnim = 'walk';
+      }
+      
+      const animKey = `${player.charType}_${targetAnim}`;
+      
+      // Only change animation if different from current
+      if (player.currentAnim !== targetAnim && this.anims.exists(animKey)) {
+        player.currentAnim = targetAnim;
+        sprite.play(animKey);
+        // Force size lock after animation change
+        sprite.setDisplaySize(64, 64);
+        console.log(`[ArenaScene] Playing animation: ${animKey}`);
+      }
+    }
+    
+    // Ensure size stays locked (safety check every frame)
+    if (player.charType && sprite.displayWidth !== 64) {
+      sprite.setDisplaySize(64, 64);
+    }
+    
     // Tint based on attack state with better colors
     if (serverState.attackState === "hurt") {
       sprite.setTint(0xff4444); // Bright red when hurt
@@ -1610,52 +1685,64 @@ export default class ArenaScene extends Phaser.Scene {
       // Stop any existing tweens on sprite
       this.tweens.killTweensOf(sprite);
       
-      if (serverState.attackState === "punch") {
-        // Quick jab animation
-        const dir = player.facingRight ? 1 : -1;
-        this.tweens.add({
-          targets: sprite,
-          x: sprite.x + (dir * 15),
-          scaleX: player.isContainer ? (player.facingRight ? 1.15 : -1.15) : 1.15,
-          scaleY: 0.95,
-          duration: 80,
-          yoyo: true,
-          ease: 'Power2'
-        });
-        // Punch swoosh
-        this.createPunchEffect(sprite.x + (dir * 40), sprite.y - 30, player.facingRight);
-      } else if (serverState.attackState === "heavy") {
-        // Heavy attack animation - bigger swing
-        const dir = player.facingRight ? 1 : -1;
-        this.tweens.add({
-          targets: sprite,
-          x: sprite.x + (dir * 25),
-          scaleX: player.isContainer ? (player.facingRight ? 1.3 : -1.3) : 1.3,
-          scaleY: 0.85,
-          duration: 150,
-          yoyo: true,
-          ease: 'Back.easeOut'
-        });
-        // Heavy swoosh with more impact
-        this.createHeavyEffect(sprite.x + (dir * 50), sprite.y - 30, player.facingRight);
-      } else if (serverState.attackState === "hurt") {
-        // Knockback animation
-        const knockDir = player.facingRight ? -1 : 1;
-        this.tweens.add({
-          targets: sprite,
-          x: sprite.x + (knockDir * 10),
-          duration: 100,
-          yoyo: true,
-          ease: 'Power1'
-        });
+      // Skip scale tweens for frame-animated characters (they have their own animation frames)
+      if (!player.charType) {
+        if (serverState.attackState === "punch") {
+          // Quick jab animation
+          const dir = player.facingRight ? 1 : -1;
+          this.tweens.add({
+            targets: sprite,
+            x: sprite.x + (dir * 15),
+            scaleX: player.isContainer ? (player.facingRight ? 1.15 : -1.15) : 1.15,
+            scaleY: 0.95,
+            duration: 80,
+            yoyo: true,
+            ease: 'Power2'
+          });
+          // Punch swoosh
+          this.createPunchEffect(sprite.x + (dir * 40), sprite.y - 30, player.facingRight);
+        } else if (serverState.attackState === "heavy") {
+          // Heavy attack animation - bigger swing
+          const dir = player.facingRight ? 1 : -1;
+          this.tweens.add({
+            targets: sprite,
+            x: sprite.x + (dir * 25),
+            scaleX: player.isContainer ? (player.facingRight ? 1.3 : -1.3) : 1.3,
+            scaleY: 0.85,
+            duration: 150,
+            yoyo: true,
+            ease: 'Back.easeOut'
+          });
+          // Heavy swoosh with more impact
+          this.createHeavyEffect(sprite.x + (dir * 50), sprite.y - 30, player.facingRight);
+        } else if (serverState.attackState === "hurt") {
+          // Knockback animation
+          const knockDir = player.facingRight ? -1 : 1;
+          this.tweens.add({
+            targets: sprite,
+            x: sprite.x + (knockDir * 10),
+            duration: 100,
+            yoyo: true,
+            ease: 'Power1'
+          });
+        } else {
+          // Reset to normal scale
+          sprite.setScale(player.isContainer ? (player.facingRight ? 1 : -1) : 1, 1);
+        }
       } else {
-        // Reset to normal scale
-        sprite.setScale(player.isContainer ? (player.facingRight ? 1 : -1) : 1, 1);
+        // For animated characters, still show effects but no scale tweens
+        if (serverState.attackState === "punch") {
+          const dir = player.facingRight ? 1 : -1;
+          this.createPunchEffect(sprite.x + (dir * 40), sprite.y - 30, player.facingRight);
+        } else if (serverState.attackState === "heavy") {
+          const dir = player.facingRight ? 1 : -1;
+          this.createHeavyEffect(sprite.x + (dir * 50), sprite.y - 30, player.facingRight);
+        }
       }
     }
     
-    // Jumping animation
-    if (!serverState.grounded) {
+    // Jumping animation - skip scale changes for animated characters
+    if (!serverState.grounded && !player.charType) {
       // Squash when going up, stretch when coming down
       const squash = serverState.vy < 0 ? 0.9 : 1.1;
       const stretch = serverState.vy < 0 ? 1.1 : 0.9;
