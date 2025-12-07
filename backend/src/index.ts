@@ -17,7 +17,16 @@ app.use(express.json());
 app.use(cors());
 app.use(bodyParser.json());
 
-app.use("/auth", authRouter);   
+app.use("/auth", authRouter);
+
+// Optional blockchain routes - only load if available
+try {
+  const blockchainRouter = require("./blockchain").default;
+  app.use("/api/blockchain", blockchainRouter);
+  console.log("✅ Blockchain routes loaded");
+} catch (err) {
+  console.log("⚠️  Blockchain routes not available (optional)");
+}   
 
 // Simple CORS for local dev (fixed variable names)
 app.use((req, res, next) => {

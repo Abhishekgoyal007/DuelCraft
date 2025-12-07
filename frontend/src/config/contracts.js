@@ -2,17 +2,17 @@
 // Update these after deploying to Mantle
 
 export const CONTRACTS = {
-  // Mantle Testnet (Chain ID: 5003)
+  // Mantle Testnet (Chain ID: 5003) - Character Rarity System Active ✅
   mantleTestnet: {
     chainId: 5003,
     rpcUrl: 'https://rpc.sepolia.mantle.xyz',
     blockExplorer: 'https://explorer.sepolia.mantle.xyz',
     contracts: {
-      ArenaToken: '0x0bdf5C856348aDaf2Ff6745ffD04EA141F0773A2',
-      DuelCraftCharacter: '0x171613677f691aB6F6f7BCEABA3fBDd1b2A4D980',
-      SeasonPass: '0x90535F69DB586Ff5871A991fd34773B0E5d2a424',
-      Marketplace: '0x9121d93A2BCFDB88F67FACB4031Ff3Bf78B8d2aa',
-      Tournament: '0x97B5107340a0E34625BCD533e0AF69231A18B338',
+      ArenaToken: '0x57AC8904F597E727BD53e8E9f7A00280876F13A1',
+      DuelCraftCharacter: '0x5f8B9575ABADF3A356337c2118045412A966BED9',
+      SeasonPass: '0x7385035e4436Cc987298497555094e2d4B9b89b0',
+      Marketplace: '0x9edAE91e4d9Fe8B89238223CcEd674D321C0d8f7',
+      Tournament: '0xcFC6599Cb85058566261d303FDD9a7f50438D2DD',
     },
   },
   

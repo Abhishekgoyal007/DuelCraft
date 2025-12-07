@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import Navbar from "../components/Navbar";
 import { useAuth } from "../context/AuthContext";
+import { useWeb3 } from "../context/Web3Context";
 import { Link } from "react-router-dom";
 import { CHARACTER_LIST } from "../config/characters";
 
@@ -11,11 +12,48 @@ const PREMADE_CHARACTERS = CHARACTER_LIST;
 export default function CharacterCreator() {
   const auth = useAuth();
   const user = auth?.user ?? null;
+  const { isConnected, connect, mintCharacter, isCorrectChain, switchToMantleNetwork, contracts } = useWeb3();
 
   const [selectedCharacter, setSelectedCharacter] = useState(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [minting, setMinting] = useState(false);
+  const [mintSuccess, setMintSuccess] = useState(false);
+  const [txHash, setTxHash] = useState(null);
+  const [characterAvailability, setCharacterAvailability] = useState({});
+  const [checkingAvailability, setCheckingAvailability] = useState(false);
+
+  // Check character availability on blockchain
+  useEffect(() => {
+    async function checkAvailability() {
+      if (!contracts?.character || !isConnected) {
+        console.log('[CharacterCreator] Skipping availability check:', { hasContracts: !!contracts?.character, isConnected });
+        return;
+      }
+      
+      console.log('[CharacterCreator] Checking character availability...');
+      setCheckingAvailability(true);
+      try {
+        const availability = {};
+        
+        for (const char of PREMADE_CHARACTERS) {
+          const isAvailable = await contracts.character.isCharacterAvailable(char.name);
+          console.log(`[CharacterCreator] ${char.name} available:`, isAvailable);
+          availability[char.id] = isAvailable;
+        }
+        
+        console.log('[CharacterCreator] Final availability:', availability);
+        setCharacterAvailability(availability);
+      } catch (err) {
+        console.error('[CharacterCreator] Failed to check character availability:', err);
+      } finally {
+        setCheckingAvailability(false);
+      }
+    }
+    
+    checkAvailability();
+  }, [contracts, isConnected]);
 
   // Load player's selected character on mount
   useEffect(() => {
@@ -71,6 +109,115 @@ export default function CharacterCreator() {
       alert("Save failed: " + err.message);
     } finally {
       setSaving(false);
+    }
+  }
+
+  // Mint character NFT on blockchain
+  async function handleMintNFT() {
+    console.log('[CharacterCreator] Mint clicked!', { selectedCharacter, isConnected, isCorrectChain });
+    
+    if (!selectedCharacter) {
+      alert("Please select a character first!");
+      return;
+    }
+
+    // Check wallet connection
+    if (!isConnected) {
+      console.log('[CharacterCreator] Wallet not connected, connecting...');
+      const connected = await connect();
+      if (!connected) {
+        alert("Please connect your wallet to mint an NFT");
+        return;
+      }
+    }
+
+    // Check correct network
+    if (!isCorrectChain) {
+      console.log('[CharacterCreator] Wrong network, switching to Mantle...');
+      const switched = await switchToMantleNetwork();
+      if (!switched) {
+        alert("Please switch to Mantle Testnet to mint your character NFT");
+        return;
+      }
+    }
+
+    setMinting(true);
+    console.log('[CharacterCreator] Starting mint process...');
+    
+    try {
+      // Save character selection first
+      if (!saved) {
+        console.log('[CharacterCreator] Saving character first...');
+        await saveCharacter();
+      }
+
+      // Convert character selection to customization format
+      // Get character name
+      const characterData = PREMADE_CHARACTERS.find(c => c.id === selectedCharacter);
+      const characterName = characterData?.name || 'warrior';
+      console.log('[CharacterCreator] Minting character:', characterName);
+
+      // Create customization object (default values for premade characters)
+      const customization = {
+        body: 0,
+        hair: 0,
+        hairColor: 0,
+        eyes: 0,
+        mouth: 0,
+        tops: 0,
+        topColor: 0,
+        bottoms: 0,
+        bottomColor: 0,
+        shoes: 0,
+        accessory: 0,
+        background: 0,
+        effect: 0,
+      };
+
+      // Mint NFT on blockchain with character type and customization
+      console.log('[CharacterCreator] Calling mintCharacter with:', { characterName, customization });
+      const result = await mintCharacter(characterName, customization);
+      console.log('[CharacterCreator] Mint successful!', result);
+      
+      setMintSuccess(true);
+      setTxHash(result.txHash);
+      
+      // Show success message
+      setTimeout(() => {
+        setMintSuccess(false);
+      }, 10000);
+      
+    } catch (err) {
+      console.error('[CharacterCreator] Mint error:', err);
+      console.error('[CharacterCreator] Error details:', {
+        message: err.message,
+        code: err.code,
+        reason: err.reason,
+        data: err.data
+      });
+      
+      // Parse error messages
+      if (err.message && (err.message.includes("Already owns a character") || err.message.includes("Already owns"))) {
+        console.log('[CharacterCreator] Error: User already owns character');
+        alert("❌ You already own a character NFT!\n\nEach wallet can only mint ONE character.\n\nYou can view your NFT on the Hub page.");
+      } else if (err.message && (err.message.includes("Character already minted") || err.message.includes("already minted by another player"))) {
+        console.log('[CharacterCreator] Error: Character already taken');
+        alert("❌ This character is already taken!\n\n🔒 Someone else has minted this rare character.\n\nPlease select a different character.");
+        // Refresh availability
+        window.location.reload();
+      } else if (err.code === 4001 || err.code === "ACTION_REJECTED") {
+        console.log('[CharacterCreator] Error: User cancelled transaction');
+        alert("Transaction cancelled by user");
+      } else if (err.message && err.message.includes("insufficient funds")) {
+        console.log('[CharacterCreator] Error: Insufficient funds');
+        alert("❌ Insufficient MNT for gas fees.\n\nPlease get testnet MNT from the Mantle faucet.");
+      } else {
+        console.log('[CharacterCreator] Error: Unknown error');
+        alert(`❌ Failed to mint NFT:\n\n${err.message || err.reason || "Unknown error"}`);
+      }
+    } finally {
+      console.log('[CharacterCreator] Mint process finished');
+      setMinting(false);
     }
   }
 
@@ -138,31 +285,62 @@ export default function CharacterCreator() {
           <div className="bg-amber-100 border-4 border-amber-800 rounded-xl p-6 shadow-lg">
             <h3 className="text-center font-bold text-amber-900 mb-4 text-lg">Select Your Character</h3>
             
+            {/* Loading overlay for availability check */}
+            {checkingAvailability && (
+              <div className="text-center py-4 text-amber-700 font-bold">
+                🔍 Checking character availability on blockchain...
+              </div>
+            )}
+            
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
               {PREMADE_CHARACTERS.map(char => {
                 const isSelected = selectedCharacter === char.id;
+                const isAvailable = characterAvailability[char.id];
+                const isTaken = isAvailable === false; // Explicitly false means taken
+                
                 return (
                   <button
                     key={char.id}
-                    onClick={() => selectCharacter(char.id)}
-                    className={`relative p-4 rounded-xl border-4 transition-all transform hover:scale-105 ${
-                      isSelected
-                        ? 'border-green-500 bg-green-100 ring-4 ring-green-400 scale-105'
-                        : 'border-amber-300 bg-amber-50 hover:border-amber-500'
+                    onClick={() => !isTaken && selectCharacter(char.id)}
+                    disabled={isTaken}
+                    className={`relative p-4 rounded-xl border-4 transition-all ${
+                      isTaken 
+                        ? 'border-red-400 bg-red-50 opacity-60 cursor-not-allowed'
+                        : isSelected
+                        ? 'border-green-500 bg-green-100 ring-4 ring-green-400 scale-105 transform'
+                        : 'border-amber-300 bg-amber-50 hover:border-amber-500 hover:scale-105 transform'
                     }`}
                   >
-                    {char.image ? (
-                      <img 
-                        src={char.image} 
-                        alt={char.name}
-                        className="w-24 h-24 mx-auto mb-2 object-contain"
-                        style={{ imageRendering: 'pixelated' }}
-                      />
-                    ) : (
-                      <div className="text-6xl mb-2 text-center">{char.icon}</div>
+                    {/* Taken Badge */}
+                    {isTaken && (
+                      <div className="absolute -top-2 -right-2 bg-red-600 text-white px-3 py-1 rounded-full text-xs font-black shadow-lg z-10 border-2 border-white">
+                        🔒 TAKEN
+                      </div>
                     )}
+                    
+                    {/* Selected Checkmark */}
+                    {isSelected && !isTaken && (
+                      <div className="absolute -top-2 -right-2 bg-green-600 text-white w-8 h-8 rounded-full flex items-center justify-center shadow-lg z-10 border-2 border-white">
+                        ✓
+                      </div>
+                    )}
+                    
+                    <div className={isTaken ? 'filter grayscale' : ''}>
+                      {char.image ? (
+                        <img 
+                          src={char.image} 
+                          alt={char.name}
+                          className="w-24 h-24 mx-auto mb-2 object-contain"
+                          style={{ imageRendering: 'pixelated' }}
+                        />
+                      ) : (
+                        <div className="text-6xl mb-2 text-center">{char.icon}</div>
+                      )}
+                    </div>
                     <div className="text-center font-bold text-amber-900 mb-1">{char.name}</div>
-                    <div className="text-xs text-amber-700 text-center mb-2">{char.description}</div>
+                    <div className={`text-xs text-center mb-2 ${isTaken ? 'text-red-600 font-bold' : 'text-amber-700'}`}>
+                      {isTaken ? '❌ Already Owned' : char.description}
+                    </div>
                     <div 
                       className="w-full h-8 rounded-lg border-2 border-amber-800" 
                       style={{ backgroundColor: char.color }}
@@ -193,6 +371,46 @@ export default function CharacterCreator() {
               {saved && (
                 <div className="text-center text-green-700 font-semibold animate-bounce-in">
                   ✅ Character saved!
+                </div>
+              )}
+
+              {/* Mint NFT Button */}
+              <button
+                onClick={handleMintNFT}
+                disabled={minting || !selectedCharacter || characterAvailability[selectedCharacter] === false}
+                className={`w-full py-4 rounded-lg font-black text-white transition-all transform hover:scale-105 shadow-xl ${
+                  characterAvailability[selectedCharacter] === false
+                    ? 'bg-gray-400 cursor-not-allowed opacity-60'
+                    : mintSuccess
+                    ? 'bg-gradient-to-r from-green-400 to-green-600 animate-pulse'
+                    : minting
+                    ? 'bg-gradient-to-r from-yellow-400 to-yellow-600 opacity-75'
+                    : 'bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700'
+                }`}
+              >
+                {characterAvailability[selectedCharacter] === false 
+                  ? '🔒 CHARACTER TAKEN' 
+                  : mintSuccess 
+                  ? '✓ NFT MINTED!' 
+                  : minting 
+                  ? '⏳ MINTING...' 
+                  : '🎨 MINT CHARACTER NFT'}
+              </button>
+
+              {/* Success message with transaction link */}
+              {mintSuccess && txHash && (
+                <div className="bg-green-100 border-4 border-green-500 rounded-xl p-4">
+                  <p className="text-green-800 font-bold text-center mb-2">
+                    🎉 Character NFT Minted Successfully!
+                  </p>
+                  <a
+                    href={`https://explorer.sepolia.mantle.xyz/tx/${txHash}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-purple-700 underline hover:text-purple-900 text-sm block text-center"
+                  >
+                    View on Explorer →
+                  </a>
                 </div>
               )}
               

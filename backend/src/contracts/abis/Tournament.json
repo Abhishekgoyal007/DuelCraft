@@ -1,6 +1,17 @@
 [
   {
-    "inputs": [],
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_characterNft",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_arenaToken",
+        "type": "address"
+      }
+    ],
     "stateMutability": "nonpayable",
     "type": "constructor"
   },
@@ -130,6 +141,11 @@
     "type": "error"
   },
   {
+    "inputs": [],
+    "name": "ReentrancyGuardReentrantCall",
+    "type": "error"
+  },
+  {
     "anonymous": false,
     "inputs": [
       {
@@ -183,88 +199,31 @@
     "anonymous": false,
     "inputs": [
       {
-        "indexed": false,
+        "indexed": true,
         "internalType": "uint256",
-        "name": "_fromTokenId",
+        "name": "nftId",
         "type": "uint256"
       },
       {
-        "indexed": false,
+        "indexed": true,
         "internalType": "uint256",
-        "name": "_toTokenId",
+        "name": "tournamentId",
         "type": "uint256"
-      }
-    ],
-    "name": "BatchMetadataUpdate",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
+      },
       {
         "indexed": true,
         "internalType": "address",
-        "name": "owner",
+        "name": "winner",
         "type": "address"
       },
       {
-        "indexed": true,
-        "internalType": "uint256",
-        "name": "tokenId",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "string",
-        "name": "characterType",
-        "type": "string"
-      }
-    ],
-    "name": "CharacterMinted",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "uint256",
-        "name": "tokenId",
-        "type": "uint256"
-      },
-      {
         "indexed": false,
         "internalType": "uint256",
-        "name": "level",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "wins",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "losses",
+        "name": "rank",
         "type": "uint256"
       }
     ],
-    "name": "CharacterUpdated",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "_tokenId",
-        "type": "uint256"
-      }
-    ],
-    "name": "MetadataUpdate",
+    "name": "ChampionNFTMinted",
     "type": "event"
   },
   {
@@ -291,18 +250,87 @@
     "inputs": [
       {
         "indexed": true,
+        "internalType": "uint256",
+        "name": "tournamentId",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
         "internalType": "address",
-        "name": "server",
+        "name": "player",
+        "type": "address"
+      }
+    ],
+    "name": "PlayerRegistered",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "tournamentId",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "winner",
         "type": "address"
       },
       {
         "indexed": false,
-        "internalType": "bool",
-        "name": "authorized",
-        "type": "bool"
+        "internalType": "uint256",
+        "name": "prize",
+        "type": "uint256"
       }
     ],
-    "name": "ServerAuthorized",
+    "name": "TournamentCompleted",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "tournamentId",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "name",
+        "type": "string"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "prizePool",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "entryFee",
+        "type": "uint256"
+      }
+    ],
+    "name": "TournamentCreated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "tournamentId",
+        "type": "uint256"
+      }
+    ],
+    "name": "TournamentStarted",
     "type": "event"
   },
   {
@@ -349,19 +377,13 @@
     "type": "function"
   },
   {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "name": "authorizedServers",
+    "inputs": [],
+    "name": "arenaToken",
     "outputs": [
       {
-        "internalType": "bool",
+        "internalType": "contract IERC20",
         "name": "",
-        "type": "bool"
+        "type": "address"
       }
     ],
     "stateMutability": "view",
@@ -389,12 +411,58 @@
   {
     "inputs": [
       {
-        "internalType": "string",
+        "internalType": "uint256",
+        "name": "tournamentId",
+        "type": "uint256"
+      }
+    ],
+    "name": "cancelTournament",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
         "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "championNfts",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "tournamentId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "winner",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "rank",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "mintedAt",
+        "type": "uint256"
+      },
+      {
+        "internalType": "string",
+        "name": "tournamentName",
         "type": "string"
       }
     ],
-    "name": "characterTypeOwner",
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "characterNft",
     "outputs": [
       {
         "internalType": "address",
@@ -409,144 +477,195 @@
     "inputs": [
       {
         "internalType": "uint256",
-        "name": "",
+        "name": "tournamentId",
         "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "winner",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "second",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "third",
+        "type": "address"
       }
     ],
-    "name": "characters",
-    "outputs": [
+    "name": "completeTournament",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
       {
         "internalType": "string",
-        "name": "characterType",
+        "name": "name",
         "type": "string"
       },
       {
         "internalType": "uint256",
-        "name": "level",
+        "name": "entryFee",
         "type": "uint256"
       },
       {
         "internalType": "uint256",
-        "name": "wins",
+        "name": "prizePool",
         "type": "uint256"
       },
       {
         "internalType": "uint256",
-        "name": "losses",
+        "name": "maxParticipants",
         "type": "uint256"
       },
       {
         "internalType": "uint256",
-        "name": "totalMatches",
+        "name": "registrationStart",
         "type": "uint256"
       },
       {
         "internalType": "uint256",
-        "name": "mintedAt",
+        "name": "registrationEnd",
         "type": "uint256"
       },
       {
-        "internalType": "bool",
-        "name": "isLocked",
-        "type": "bool"
+        "internalType": "uint256",
+        "name": "startTime",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "endTime",
+        "type": "uint256"
       }
     ],
-    "stateMutability": "view",
+    "name": "createTournament",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "to",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      }
+    ],
+    "name": "emergencyWithdraw",
+    "outputs": [],
+    "stateMutability": "nonpayable",
     "type": "function"
   },
   {
     "inputs": [
       {
         "internalType": "uint256",
-        "name": "",
+        "name": "tournamentId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "amount",
         "type": "uint256"
       }
     ],
-    "name": "customizations",
-    "outputs": [
-      {
-        "internalType": "uint8",
-        "name": "body",
-        "type": "uint8"
-      },
-      {
-        "internalType": "uint8",
-        "name": "hair",
-        "type": "uint8"
-      },
-      {
-        "internalType": "uint8",
-        "name": "hairColor",
-        "type": "uint8"
-      },
-      {
-        "internalType": "uint8",
-        "name": "eyes",
-        "type": "uint8"
-      },
-      {
-        "internalType": "uint8",
-        "name": "mouth",
-        "type": "uint8"
-      },
-      {
-        "internalType": "uint8",
-        "name": "tops",
-        "type": "uint8"
-      },
-      {
-        "internalType": "uint8",
-        "name": "topColor",
-        "type": "uint8"
-      },
-      {
-        "internalType": "uint8",
-        "name": "bottoms",
-        "type": "uint8"
-      },
-      {
-        "internalType": "uint8",
-        "name": "bottomColor",
-        "type": "uint8"
-      },
-      {
-        "internalType": "uint8",
-        "name": "shoes",
-        "type": "uint8"
-      },
-      {
-        "internalType": "uint8",
-        "name": "accessory",
-        "type": "uint8"
-      },
-      {
-        "internalType": "uint8",
-        "name": "background",
-        "type": "uint8"
-      },
-      {
-        "internalType": "uint8",
-        "name": "effect",
-        "type": "uint8"
-      }
-    ],
-    "stateMutability": "view",
+    "name": "fundPrizePool",
+    "outputs": [],
+    "stateMutability": "nonpayable",
     "type": "function"
   },
   {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "tokenId",
-        "type": "uint256"
-      }
-    ],
-    "name": "generateTokenURI",
+    "inputs": [],
+    "name": "getActiveTournaments",
     "outputs": [
       {
-        "internalType": "string",
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "id",
+            "type": "uint256"
+          },
+          {
+            "internalType": "string",
+            "name": "name",
+            "type": "string"
+          },
+          {
+            "internalType": "uint256",
+            "name": "entryFee",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "prizePool",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "maxParticipants",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "registrationStart",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "registrationEnd",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "startTime",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "endTime",
+            "type": "uint256"
+          },
+          {
+            "internalType": "enum Tournament.Status",
+            "name": "status",
+            "type": "uint8"
+          },
+          {
+            "internalType": "address[]",
+            "name": "participants",
+            "type": "address[]"
+          },
+          {
+            "internalType": "address",
+            "name": "winner",
+            "type": "address"
+          },
+          {
+            "internalType": "address[]",
+            "name": "topThree",
+            "type": "address[]"
+          }
+        ],
+        "internalType": "struct Tournament.TournamentData[]",
         "name": "",
-        "type": "string"
+        "type": "tuple[]"
       }
     ],
     "stateMutability": "view",
@@ -575,53 +694,16 @@
     "inputs": [
       {
         "internalType": "uint256",
-        "name": "tokenId",
+        "name": "tournamentId",
         "type": "uint256"
       }
     ],
-    "name": "getCharacter",
+    "name": "getParticipants",
     "outputs": [
       {
-        "components": [
-          {
-            "internalType": "string",
-            "name": "characterType",
-            "type": "string"
-          },
-          {
-            "internalType": "uint256",
-            "name": "level",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "wins",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "losses",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "totalMatches",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "mintedAt",
-            "type": "uint256"
-          },
-          {
-            "internalType": "bool",
-            "name": "isLocked",
-            "type": "bool"
-          }
-        ],
-        "internalType": "struct DuelCraftCharacter.Character",
+        "internalType": "address[]",
         "name": "",
-        "type": "tuple"
+        "type": "address[]"
       }
     ],
     "stateMutability": "view",
@@ -631,121 +713,16 @@
     "inputs": [
       {
         "internalType": "address",
-        "name": "wallet",
+        "name": "player",
         "type": "address"
       }
     ],
-    "name": "getCharacterByWallet",
+    "name": "getPlayerChampionNFTs",
     "outputs": [
       {
-        "internalType": "uint256",
+        "internalType": "uint256[]",
         "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "string",
-        "name": "characterType",
-        "type": "string"
-      }
-    ],
-    "name": "getCharacterTypeOwner",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "tokenId",
-        "type": "uint256"
-      }
-    ],
-    "name": "getCustomization",
-    "outputs": [
-      {
-        "components": [
-          {
-            "internalType": "uint8",
-            "name": "body",
-            "type": "uint8"
-          },
-          {
-            "internalType": "uint8",
-            "name": "hair",
-            "type": "uint8"
-          },
-          {
-            "internalType": "uint8",
-            "name": "hairColor",
-            "type": "uint8"
-          },
-          {
-            "internalType": "uint8",
-            "name": "eyes",
-            "type": "uint8"
-          },
-          {
-            "internalType": "uint8",
-            "name": "mouth",
-            "type": "uint8"
-          },
-          {
-            "internalType": "uint8",
-            "name": "tops",
-            "type": "uint8"
-          },
-          {
-            "internalType": "uint8",
-            "name": "topColor",
-            "type": "uint8"
-          },
-          {
-            "internalType": "uint8",
-            "name": "bottoms",
-            "type": "uint8"
-          },
-          {
-            "internalType": "uint8",
-            "name": "bottomColor",
-            "type": "uint8"
-          },
-          {
-            "internalType": "uint8",
-            "name": "shoes",
-            "type": "uint8"
-          },
-          {
-            "internalType": "uint8",
-            "name": "accessory",
-            "type": "uint8"
-          },
-          {
-            "internalType": "uint8",
-            "name": "background",
-            "type": "uint8"
-          },
-          {
-            "internalType": "uint8",
-            "name": "effect",
-            "type": "uint8"
-          }
-        ],
-        "internalType": "struct DuelCraftCharacter.Customization",
-        "name": "",
-        "type": "tuple"
+        "type": "uint256[]"
       }
     ],
     "stateMutability": "view",
@@ -778,12 +755,17 @@
   {
     "inputs": [
       {
-        "internalType": "string",
-        "name": "characterType",
-        "type": "string"
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
       }
     ],
-    "name": "isCharacterAvailable",
+    "name": "isRegistered",
     "outputs": [
       {
         "internalType": "bool",
@@ -795,97 +777,6 @@
     "type": "function"
   },
   {
-    "inputs": [
-      {
-        "internalType": "string",
-        "name": "characterType",
-        "type": "string"
-      },
-      {
-        "components": [
-          {
-            "internalType": "uint8",
-            "name": "body",
-            "type": "uint8"
-          },
-          {
-            "internalType": "uint8",
-            "name": "hair",
-            "type": "uint8"
-          },
-          {
-            "internalType": "uint8",
-            "name": "hairColor",
-            "type": "uint8"
-          },
-          {
-            "internalType": "uint8",
-            "name": "eyes",
-            "type": "uint8"
-          },
-          {
-            "internalType": "uint8",
-            "name": "mouth",
-            "type": "uint8"
-          },
-          {
-            "internalType": "uint8",
-            "name": "tops",
-            "type": "uint8"
-          },
-          {
-            "internalType": "uint8",
-            "name": "topColor",
-            "type": "uint8"
-          },
-          {
-            "internalType": "uint8",
-            "name": "bottoms",
-            "type": "uint8"
-          },
-          {
-            "internalType": "uint8",
-            "name": "bottomColor",
-            "type": "uint8"
-          },
-          {
-            "internalType": "uint8",
-            "name": "shoes",
-            "type": "uint8"
-          },
-          {
-            "internalType": "uint8",
-            "name": "accessory",
-            "type": "uint8"
-          },
-          {
-            "internalType": "uint8",
-            "name": "background",
-            "type": "uint8"
-          },
-          {
-            "internalType": "uint8",
-            "name": "effect",
-            "type": "uint8"
-          }
-        ],
-        "internalType": "struct DuelCraftCharacter.Customization",
-        "name": "custom",
-        "type": "tuple"
-      }
-    ],
-    "name": "mintCharacter",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
     "inputs": [],
     "name": "name",
     "outputs": [
@@ -893,6 +784,19 @@
         "internalType": "string",
         "name": "",
         "type": "string"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "nextTournamentId",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
       }
     ],
     "stateMutability": "view",
@@ -928,6 +832,19 @@
       }
     ],
     "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "tournamentId",
+        "type": "uint256"
+      }
+    ],
+    "name": "register",
+    "outputs": [],
+    "stateMutability": "nonpayable",
     "type": "function"
   },
   {
@@ -1010,34 +927,11 @@
     "inputs": [
       {
         "internalType": "uint256",
-        "name": "tokenId",
+        "name": "tournamentId",
         "type": "uint256"
-      },
-      {
-        "internalType": "bool",
-        "name": "locked",
-        "type": "bool"
       }
     ],
-    "name": "setCharacterLock",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "server",
-        "type": "address"
-      },
-      {
-        "internalType": "bool",
-        "name": "authorized",
-        "type": "bool"
-      }
-    ],
-    "name": "setServerAuthorization",
+    "name": "startTournament",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -1094,13 +988,69 @@
     "type": "function"
   },
   {
-    "inputs": [],
-    "name": "totalSupply",
-    "outputs": [
+    "inputs": [
       {
         "internalType": "uint256",
         "name": "",
         "type": "uint256"
+      }
+    ],
+    "name": "tournaments",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "id",
+        "type": "uint256"
+      },
+      {
+        "internalType": "string",
+        "name": "name",
+        "type": "string"
+      },
+      {
+        "internalType": "uint256",
+        "name": "entryFee",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "prizePool",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "maxParticipants",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "registrationStart",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "registrationEnd",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "startTime",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "endTime",
+        "type": "uint256"
+      },
+      {
+        "internalType": "enum Tournament.Status",
+        "name": "status",
+        "type": "uint8"
+      },
+      {
+        "internalType": "address",
+        "name": "winner",
+        "type": "address"
       }
     ],
     "stateMutability": "view",
@@ -1140,128 +1090,6 @@
     "name": "transferOwnership",
     "outputs": [],
     "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "tokenId",
-        "type": "uint256"
-      },
-      {
-        "components": [
-          {
-            "internalType": "uint8",
-            "name": "body",
-            "type": "uint8"
-          },
-          {
-            "internalType": "uint8",
-            "name": "hair",
-            "type": "uint8"
-          },
-          {
-            "internalType": "uint8",
-            "name": "hairColor",
-            "type": "uint8"
-          },
-          {
-            "internalType": "uint8",
-            "name": "eyes",
-            "type": "uint8"
-          },
-          {
-            "internalType": "uint8",
-            "name": "mouth",
-            "type": "uint8"
-          },
-          {
-            "internalType": "uint8",
-            "name": "tops",
-            "type": "uint8"
-          },
-          {
-            "internalType": "uint8",
-            "name": "topColor",
-            "type": "uint8"
-          },
-          {
-            "internalType": "uint8",
-            "name": "bottoms",
-            "type": "uint8"
-          },
-          {
-            "internalType": "uint8",
-            "name": "bottomColor",
-            "type": "uint8"
-          },
-          {
-            "internalType": "uint8",
-            "name": "shoes",
-            "type": "uint8"
-          },
-          {
-            "internalType": "uint8",
-            "name": "accessory",
-            "type": "uint8"
-          },
-          {
-            "internalType": "uint8",
-            "name": "background",
-            "type": "uint8"
-          },
-          {
-            "internalType": "uint8",
-            "name": "effect",
-            "type": "uint8"
-          }
-        ],
-        "internalType": "struct DuelCraftCharacter.Customization",
-        "name": "custom",
-        "type": "tuple"
-      }
-    ],
-    "name": "updateCustomization",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "tokenId",
-        "type": "uint256"
-      },
-      {
-        "internalType": "bool",
-        "name": "won",
-        "type": "bool"
-      }
-    ],
-    "name": "updateMatchStats",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "name": "walletToCharacter",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
     "type": "function"
   }
 ]

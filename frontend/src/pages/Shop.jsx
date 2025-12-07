@@ -283,8 +283,15 @@ export default function Shop() {
         </div>
 
         {/* Items Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-          {filteredItems.map(item => {
+        {filteredItems.length === 0 ? (
+          <div className="col-span-full text-center py-16">
+            <div className="text-6xl mb-4">🤷</div>
+            <h3 className="text-2xl font-black text-amber-900 mb-2">No Items Found</h3>
+            <p className="text-amber-700">Try selecting a different category</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {filteredItems.map(item => {
             const owned = isOwned(item);
             const canAfford = coins >= item.price;
             
@@ -361,7 +368,8 @@ export default function Shop() {
               </div>
             );
           })}
-        </div>
+          </div>
+        )}
 
         {/* Back button */}
         <div className="mt-12 text-center">

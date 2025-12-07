@@ -162,8 +162,11 @@ export function Web3Provider({ children }) {
   }
 
   // Helper function to mint character NFT
-  const mintCharacter = async (avatarData) => {
+  const mintCharacter = async (characterType, avatarData) => {
+    console.log('[Web3Context] mintCharacter called with:', { characterType, avatarData });
+    
     if (!contracts.character || !signer) {
+      console.error('[Web3Context] Missing contracts or signer:', { hasContract: !!contracts.character, hasSigner: !!signer });
       throw new Error('Contracts not initialized or wallet not connected');
     }
 
@@ -172,21 +175,29 @@ export function Web3Provider({ children }) {
       const customization = {
         body: avatarData.body || 0,
         hair: avatarData.hair || 0,
+        hairColor: avatarData.hairColor || 0,
         eyes: avatarData.eyes || 0,
-        brows: avatarData.brows || 0,
         mouth: avatarData.mouth || 0,
         tops: avatarData.tops || 0,
+        topColor: avatarData.topColor || 0,
         bottoms: avatarData.bottoms || 0,
+        bottomColor: avatarData.bottomColor || 0,
         shoes: avatarData.shoes || 0,
         accessory: avatarData.accessory || 0,
         background: avatarData.background || 0,
+        effect: avatarData.effect || 0,
       };
 
-      // Call mintCharacter on contract
-      const tx = await contracts.character.mintCharacter(customization);
+      console.log('[Web3Context] Sending transaction with:', { characterType, customization });
+      
+      // Call mintCharacter on contract with characterType and customization
+      const tx = await contracts.character.mintCharacter(characterType, customization);
+      console.log('[Web3Context] Transaction sent:', tx.hash);
       
       // Wait for transaction confirmation
+      console.log('[Web3Context] Waiting for confirmation...');
       const receipt = await tx.wait();
+      console.log('[Web3Context] Transaction confirmed:', receipt);
       
       return {
         success: true,
@@ -194,7 +205,13 @@ export function Web3Provider({ children }) {
         blockNumber: receipt.blockNumber,
       };
     } catch (error) {
-      console.error('Mint failed:', error);
+      console.error('[Web3Context] Mint failed:', error);
+      console.error('[Web3Context] Error details:', {
+        message: error.message,
+        code: error.code,
+        reason: error.reason,
+        data: error.data
+      });
       throw error;
     }
   };

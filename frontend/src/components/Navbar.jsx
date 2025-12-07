@@ -25,9 +25,9 @@ export default function Navbar() {
           </div>
         </Link>
 
-        <nav className="ml-8 flex gap-2 text-sm font-bold">
+        <nav className="ml-8 flex gap-3 text-sm font-bold flex-wrap items-center">
           <Link 
-            className={`px-4 py-2 rounded-lg transition-all hover:scale-105 ${
+            className={`px-5 py-2 rounded-lg transition-all hover:scale-105 ${
               isActive('/') 
                 ? 'bg-white text-sky-600 shadow-md' 
                 : 'text-white hover:bg-white/20'
@@ -37,7 +37,7 @@ export default function Navbar() {
             Home
           </Link>
           <Link 
-            className={`px-4 py-2 rounded-lg transition-all hover:scale-105 ${
+            className={`px-5 py-2 rounded-lg transition-all hover:scale-105 ${
               isActive('/hub') 
                 ? 'bg-white text-sky-600 shadow-md' 
                 : 'text-white hover:bg-white/20'
@@ -47,7 +47,7 @@ export default function Navbar() {
             Hub
           </Link>
           <Link 
-            className={`px-4 py-2 rounded-lg transition-all hover:scale-105 ${
+            className={`px-5 py-2 rounded-lg transition-all hover:scale-105 ${
               isActive('/creator') 
                 ? 'bg-white text-sky-600 shadow-md' 
                 : 'text-white hover:bg-white/20'
@@ -57,7 +57,7 @@ export default function Navbar() {
             Creator
           </Link>
           <Link 
-            className={`px-4 py-2 rounded-lg transition-all hover:scale-105 ${
+            className={`px-5 py-2 rounded-lg transition-all hover:scale-105 ${
               isActive('/shop') 
                 ? 'bg-white text-sky-600 shadow-md' 
                 : 'text-white hover:bg-white/20'
@@ -67,7 +67,7 @@ export default function Navbar() {
             Shop
           </Link>
           <Link 
-            className={`px-4 py-2 rounded-lg transition-all hover:scale-105 ${
+            className={`px-5 py-2 rounded-lg transition-all hover:scale-105 ${
               isActive('/leaderboard') 
                 ? 'bg-white text-sky-600 shadow-md' 
                 : 'text-white hover:bg-white/20'

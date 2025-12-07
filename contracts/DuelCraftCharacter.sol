@@ -3,6 +3,7 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/utils/Base64.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 
@@ -12,9 +13,10 @@ import "@openzeppelin/contracts/utils/Strings.sol";
  * Characters can be minted with specific traits and updated over time
  */
 contract DuelCraftCharacter is ERC721URIStorage, Ownable {
+    using Counters for Counters.Counter;
     using Strings for uint256;
     
-    uint256 private _tokenIdCounter;
+    Counters.Counter private _tokenIds;
     
     // Character trait structure
     struct Character {
@@ -81,8 +83,8 @@ contract DuelCraftCharacter is ERC721URIStorage, Ownable {
         // Check if this character type is already minted (ensure rarity)
         require(characterTypeOwner[characterType] == address(0), "Character already minted by another player");
         
-        _tokenIdCounter++;
-        uint256 newTokenId = _tokenIdCounter;
+        _tokenIds.increment();
+        uint256 newTokenId = _tokenIds.current();
         
         // Mint NFT to sender
         _safeMint(msg.sender, newTokenId);
@@ -293,6 +295,6 @@ contract DuelCraftCharacter is ERC721URIStorage, Ownable {
      * @dev Get total supply
      */
     function totalSupply() public view returns (uint256) {
-        return _tokenIdCounter;
+        return _tokenIds.current();
     }
 }
