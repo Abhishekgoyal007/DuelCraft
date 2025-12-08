@@ -5,6 +5,9 @@ import { useAuth } from "../context/AuthContext";
 import { useWeb3 } from "../context/Web3Context";
 import { Link } from "react-router-dom";
 import { CHARACTER_LIST } from "../config/characters";
+import { ethers } from "ethers";
+import { getContractAddresses } from "../config/contracts";
+import DuelCraftCharacterABI from "../contracts/abis/DuelCraftCharacter.json";
 
 // Use characters from config
 const PREMADE_CHARACTERS = CHARACTER_LIST;
@@ -23,6 +26,39 @@ export default function CharacterCreator() {
   const [txHash, setTxHash] = useState(null);
   const [characterAvailability, setCharacterAvailability] = useState({});
   const [checkingAvailability, setCheckingAvailability] = useState(false);
+  const [ownedNFTCharacter, setOwnedNFTCharacter] = useState(null);
+
+  // Check if user owns an NFT and which character it is
+  useEffect(() => {
+    async function checkOwnedNFT() {
+      if (!user?.address) return;
+      
+      try {
+        const provider = new ethers.JsonRpcProvider('https://rpc.sepolia.mantle.xyz');
+        const contractAddresses = getContractAddresses(5003);
+        const characterContract = new ethers.Contract(
+          contractAddresses.DuelCraftCharacter,
+          DuelCraftCharacterABI,
+          provider
+        );
+        
+        const tokenId = await characterContract.walletToCharacter(user.address);
+        
+        if (tokenId > 0) {
+          // User owns an NFT, get the character data
+          const characterData = await characterContract.getCharacter(tokenId);
+          console.log('[CharacterCreator] User owns NFT:', tokenId.toString(), 'Character:', characterData.characterType);
+          setOwnedNFTCharacter(characterData.characterType);
+        } else {
+          setOwnedNFTCharacter(null);
+        }
+      } catch (err) {
+        console.error('[CharacterCreator] Failed to check owned NFT:', err);
+      }
+    }
+    
+    checkOwnedNFT();
+  }, [user]);
 
   // Check character availability on blockchain
   useEffect(() => {
@@ -296,7 +332,8 @@ export default function CharacterCreator() {
               {PREMADE_CHARACTERS.map(char => {
                 const isSelected = selectedCharacter === char.id;
                 const isAvailable = characterAvailability[char.id];
-                const isTaken = isAvailable === false; // Explicitly false means taken
+                const isOwnedByUser = ownedNFTCharacter === char.name;
+                const isTaken = isAvailable === false && !isOwnedByUser; // Taken if not available AND not owned by user
                 
                 return (
                   <button
@@ -306,11 +343,20 @@ export default function CharacterCreator() {
                     className={`relative p-4 rounded-xl border-4 transition-all ${
                       isTaken 
                         ? 'border-red-400 bg-red-50 opacity-60 cursor-not-allowed'
+                        : isOwnedByUser
+                        ? 'border-purple-500 bg-purple-50 ring-4 ring-purple-300'
                         : isSelected
                         ? 'border-green-500 bg-green-100 ring-4 ring-green-400 scale-105 transform'
                         : 'border-amber-300 bg-amber-50 hover:border-amber-500 hover:scale-105 transform'
                     }`}
                   >
+                    {/* Owned NFT Badge */}
+                    {isOwnedByUser && (
+                      <div className="absolute -top-2 -right-2 bg-purple-600 text-white px-3 py-1 rounded-full text-xs font-black shadow-lg z-10 border-2 border-white">
+                        🎨 NFT
+                      </div>
+                    )}
+                    
                     {/* Taken Badge */}
                     {isTaken && (
                       <div className="absolute -top-2 -right-2 bg-red-600 text-white px-3 py-1 rounded-full text-xs font-black shadow-lg z-10 border-2 border-white">
@@ -338,8 +384,8 @@ export default function CharacterCreator() {
                       )}
                     </div>
                     <div className="text-center font-bold text-amber-900 mb-1">{char.name}</div>
-                    <div className={`text-xs text-center mb-2 ${isTaken ? 'text-red-600 font-bold' : 'text-amber-700'}`}>
-                      {isTaken ? '❌ Already Owned' : char.description}
+                    <div className={`text-xs text-center mb-2 ${isTaken ? 'text-red-600 font-bold' : isOwnedByUser ? 'text-purple-600 font-bold' : 'text-amber-700'}`}>
+                      {isTaken ? '❌ Already Owned' : isOwnedByUser ? '✅ Your NFT' : char.description}
                     </div>
                     <div 
                       className="w-full h-8 rounded-lg border-2 border-amber-800" 
