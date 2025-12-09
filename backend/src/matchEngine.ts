@@ -76,6 +76,8 @@ export type PlayerState = {
   attackEndTime: number;   // when current attack/hurt animation ends
   stunEndTime: number;     // when stun ends (can't act while stunned)
   lastDamageFrom: string | null; // id of last player who dealt damage
+  // AI data (only for AI players)
+  _aiData?: any;
 };
 
 export type Match = {
@@ -129,7 +131,7 @@ export class MatchEngine {
   unregisterClient(socket: WebSocket) {
     const id = (socket as any).__clientId;
     if (!id) return;
-    
+
     // Check if client is in a match - handle disconnect forfeit
     const client = this.clients.get(id);
     if (client && client.status === "in_match") {
@@ -145,7 +147,7 @@ export class MatchEngine {
         }
       }
     }
-    
+
     this.clients.delete(id);
     const qpos = this.queue.indexOf(id);
     if (qpos >= 0) this.queue.splice(qpos, 1);
@@ -161,7 +163,7 @@ export class MatchEngine {
     try {
       // For compact log
       console.log(`[matchEngine] received from ${id}:`, msg.type || msg);
-    } catch (e) {}
+    } catch (e) { }
 
     switch (msg.type) {
       case "join_queue":
@@ -175,13 +177,13 @@ export class MatchEngine {
             characterImage: msg.profile?.characterImage
           };
           console.log(`[matchEngine] Profile attached for ${id}:`, JSON.stringify(client.profile));
-          
+
           // Store cash duel info if present
           if (msg.mode === 'cash_duel' && msg.duelId) {
             client.meta = { mode: 'cash_duel', duelId: String(msg.duelId) }; // Ensure string
             console.log(`[matchEngine] Cash duel mode for ${id}, duelId: ${msg.duelId} (type: ${typeof msg.duelId})`);
           }
-          
+
           // Resolve equipped asset IDs to URLs for rendering, then enqueue
           this.resolveEquippedUrls(client).then(() => {
             console.log(`[matchEngine] Equipped URLs resolved for ${id}:`, client.profile?.equippedUrls);
@@ -220,7 +222,7 @@ export class MatchEngine {
   // Create a match against AI bot
   createAIMatch(client: Client) {
     if (client.status !== "idle") return;
-    
+
     // Create a fake AI client
     const aiClient: Client = {
       id: "ai_bot_" + uuidv4().slice(0, 8),
@@ -233,13 +235,13 @@ export class MatchEngine {
         equipped: {}
       }
     };
-    
+
     // Store AI client
     this.clients.set(aiClient.id, aiClient);
-    
+
     // Create match
     this.createMatch(client, aiClient);
-    
+
     console.log(`[matchEngine] AI match created: ${client.id} vs ${aiClient.id}`);
   }
 
@@ -261,25 +263,25 @@ export class MatchEngine {
   // Resolve equipped asset IDs to their CDN URLs for Phaser rendering
   async resolveEquippedUrls(client: Client): Promise<void> {
     if (!client.profile?.equipped) return;
-    
+
     const equipped = client.profile.equipped;
     const assetIds = Object.values(equipped).filter(Boolean) as string[];
-    
+
     if (assetIds.length === 0) return;
-    
+
     try {
       // Fetch all equipped assets in one query
       const assets = await Asset.find({ assetId: { $in: assetIds } }).lean();
-      
+
       // Build a map of assetId -> url
       const urlMap: Record<string, string> = {};
       assets.forEach((asset: any) => {
         urlMap[asset.assetId] = asset.url;
       });
-      
+
       // Store on client profile
       client.profile.equippedUrls = urlMap;
-      
+
       console.log(`[matchEngine] Resolved ${Object.keys(urlMap).length} asset URLs for client`);
     } catch (err) {
       console.error("[matchEngine] Error resolving equipped URLs:", err);
@@ -288,19 +290,19 @@ export class MatchEngine {
 
   tryMatchFromQueue() {
     console.log(`[matchEngine] tryMatchFromQueue called, queue length: ${this.queue.length}`);
-    
+
     // First, try to match cash duel players with the same duelId
     for (let i = 0; i < this.queue.length; i++) {
       const clientA = this.clients.get(this.queue[i]);
       if (!clientA?.meta?.duelId) continue;
-      
+
       console.log(`[matchEngine] Found cash duel player: ${clientA.id}, duelId: ${clientA.meta.duelId}`);
-      
+
       // Find another player with the same duelId
       for (let j = i + 1; j < this.queue.length; j++) {
         const clientB = this.clients.get(this.queue[j]);
         console.log(`[matchEngine] Comparing with player: ${clientB?.id}, duelId: ${clientB?.meta?.duelId}`);
-        
+
         if (clientB?.meta?.duelId && String(clientB.meta.duelId) === String(clientA.meta.duelId)) {
           // Found a match! Remove both from queue
           this.queue.splice(j, 1); // Remove j first (higher index)
@@ -311,7 +313,7 @@ export class MatchEngine {
         }
       }
     }
-    
+
     // Regular matchmaking for non-cash duels
     while (this.queue.length >= 2) {
       const a = this.queue.shift()!;
@@ -319,7 +321,7 @@ export class MatchEngine {
       const ca = this.clients.get(a);
       const cb = this.clients.get(b);
       if (!ca || !cb) continue;
-      
+
       // Skip if either is waiting for cash duel opponent
       if (ca.meta?.duelId || cb.meta?.duelId) {
         // Put them back in queue
@@ -327,7 +329,7 @@ export class MatchEngine {
         this.queue.push(b);
         break;
       }
-      
+
       this.createMatch(ca, cb);
     }
   }
@@ -347,10 +349,14 @@ export class MatchEngine {
     b.status = "in_match";
     const id = uuidv4();
 
-    // initial positions (left / right)
-    const leftX = 150;
-    const rightX = 650;
-    const groundY = 395; // y coordinate for platform surface (sprites have origin at bottom)
+    // Fullscreen arena dimensions (1920x1080 style)
+    const arenaWidth = 1920;
+    const arenaHeight = 1080;
+    const groundY = Math.floor(arenaHeight * 0.55); // Ground at 55% height - on the sand arena
+
+    // initial positions (left / right) - 20% and 80% of arena width
+    const leftX = Math.floor(arenaWidth * 0.20);
+    const rightX = Math.floor(arenaWidth * 0.80);
     const now = Date.now();
 
     const createPlayerState = (x: number, facingRight: boolean): PlayerState => ({
@@ -370,7 +376,7 @@ export class MatchEngine {
     });
 
     const state = {
-      arena: { width: 800, height: 500, groundY },
+      arena: { width: arenaWidth, height: arenaHeight, groundY },
       players: {
         [a.id]: createPlayerState(leftX, true),   // Player A faces right
         [b.id]: createPlayerState(rightX, false), // Player B faces left
@@ -397,19 +403,19 @@ export class MatchEngine {
     };
 
     // notify players - each player gets their own playerId so they know which one they are
-    const payloadA = { 
-      type: "match_start", 
-      matchId: id, 
+    const payloadA = {
+      type: "match_start",
+      matchId: id,
       playerId: a.id, // tells client A which player they are
       players: playersInfo,
-      state: match.state 
+      state: match.state
     };
-    const payloadB = { 
-      type: "match_start", 
-      matchId: id, 
+    const payloadB = {
+      type: "match_start",
+      matchId: id,
       playerId: b.id, // tells client B which player they are
       players: playersInfo,
-      state: match.state 
+      state: match.state
     };
     this.safeSend(a.socket, payloadA);
     this.safeSend(b.socket, payloadB);
@@ -435,23 +441,23 @@ export class MatchEngine {
       console.log(`[input] REJECTED - match ${msg.matchId} not found for ${client.id}`);
       return;
     }
-    
+
     // Verify client is in this match
     const isInMatch = match.players.some(p => p.id === client.id);
     if (!isInMatch) {
       console.log(`[input] REJECTED - client ${client.id} not in match ${msg.matchId}`);
       return;
     }
-    
+
     // store the latest input for this client (overwrites previous)
     match.inputs[client.id] = msg.inputs || {};
-    
+
     // Debug: log movement/attack inputs
     const inp = msg.inputs;
     if (inp?.left || inp?.right || inp?.up || inp?.attack || inp?.heavy) {
       console.log(`[input] ${client.id}: L=${inp.left} R=${inp.right} U=${inp.up} A=${inp.attack} H=${inp.heavy}`);
     }
-    
+
     // acknowledge quickly
     this.safeSend(client.socket, { type: "input_ack", tick: msg.tick || 0 });
   }
@@ -469,11 +475,11 @@ export class MatchEngine {
   checkHit(attacker: PlayerState, defender: PlayerState, range: number): boolean {
     const dx = defender.x - attacker.x;
     const dy = Math.abs(defender.y - attacker.y);
-    
+
     // Check if defender is in front of attacker (based on facing direction)
     const inFront = attacker.facingRight ? dx > 0 : dx < 0;
     const distance = Math.abs(dx);
-    
+
     // Hit if: in range, in front, and vertically close enough
     return inFront && distance <= range && dy <= 50;
   }
@@ -481,67 +487,67 @@ export class MatchEngine {
   // Process attack for a player
   processAttack(
     match: Match,
-    attackerId: string, 
-    defenderId: string, 
+    attackerId: string,
+    defenderId: string,
     attackType: "punch" | "heavy",
     now: number
   ): void {
     const attacker = match.state.players[attackerId];
     const defender = match.state.players[defenderId];
-    
+
     if (!attacker || !defender) {
       console.log(`[processAttack] Missing player: attacker=${!!attacker}, defender=${!!defender}`);
       return;
     }
-    
+
     const config = attackType === "punch" ? COMBAT.PUNCH : COMBAT.HEAVY;
-    
+
     // Check cooldown
     if (now < attacker.attackCooldown) {
       return; // Still on cooldown, skip silently
     }
-    
+
     // Check if attacker is stunned
     if (now < attacker.stunEndTime) {
       return; // Stunned, skip silently
     }
-    
+
     // Check if already in an attack animation
     if (attacker.attackState !== "none" && now < attacker.attackEndTime) {
       return; // Still attacking, skip silently
     }
-    
+
     console.log(`[processAttack] ${attackerId} performing ${attackType}!`);
-    
+
     // Start attack animation
     attacker.attackState = attackType;
     attacker.attackEndTime = now + config.duration;
     attacker.attackCooldown = now + config.cooldown;
-    
+
     // Add attack event for client animation
     match.state.events.push({
       type: "attack",
       attacker: attackerId,
       attackType,
     });
-    
+
     // Check if hit connects
     if (this.checkHit(attacker, defender, config.range)) {
       // Apply damage
       defender.hp -= config.damage;
       defender.lastDamageFrom = attackerId;
-      
+
       // Apply knockback
       const knockbackDir = attacker.facingRight ? 1 : -1;
       defender.vx += config.knockback * knockbackDir;
       defender.vy += config.knockbackY;
       defender.grounded = false;
-      
+
       // Apply hitstun to defender
       defender.stunEndTime = now + COMBAT.HITSTUN_DURATION;
       defender.attackState = "hurt";
       defender.attackEndTime = now + COMBAT.HITSTUN_DURATION;
-      
+
       // Add hit event
       match.state.events.push({
         type: "hit",
@@ -550,66 +556,164 @@ export class MatchEngine {
         damage: config.damage,
         attackType,
       });
-      
+
       console.log(`[combat] ${attackerId} hit ${defenderId} with ${attackType} for ${config.damage} damage`);
     }
   }
 
-  // Simple AI behavior
+  // 💀 ULTRA NIGHTMARE AI - TRULY IMPOSSIBLE TO BEAT! 💀
   updateAIInputs(match: Match, now: number) {
     for (const player of match.players) {
-      // Only process AI players (ids starting with "ai_bot_")
       if (!player.id.startsWith("ai_bot_")) continue;
-      
+
       const aiState = match.state.players[player.id];
       const humanPlayer = match.players.find(p => !p.id.startsWith("ai_bot_"));
       if (!humanPlayer || !aiState) continue;
-      
+
       const humanState = match.state.players[humanPlayer.id];
       if (!humanState) continue;
-      
-      // Calculate distance to human
+
+      // AI memory
+      if (!aiState._aiData) {
+        aiState._aiData = {
+          lastAttackTime: 0,
+          comboCount: 0,
+          dodgeCooldown: 0,
+          lastHumanX: humanState.x,
+          lastHumanVx: 0,
+          counterWindow: 0,
+          pressureMode: false
+        };
+      }
+      const ai = aiState._aiData;
+
+      // Calculate everything
       const dx = humanState.x - aiState.x;
       const distance = Math.abs(dx);
-      
-      // AI decision making
-      const inputs: any = {
-        left: false,
-        right: false,
-        up: false,
-        attack: false,
-        heavy: false
-      };
-      
-      // Move towards player if too far
-      if (distance > 100) {
-        inputs.left = dx < 0;
-        inputs.right = dx > 0;
-      }
-      // Back off if too close
-      else if (distance < 50) {
-        inputs.left = dx > 0;
-        inputs.right = dx < 0;
-      }
-      
-      // Attack when in range
-      if (distance < 80 && distance > 30) {
-        // Random attack timing
-        if (Math.random() < 0.15) {
-          inputs.attack = true;
+      const facingHuman = (dx > 0 && aiState.facingRight) || (dx < 0 && !aiState.facingRight);
+
+      // Track human velocity for prediction
+      const humanVelX = humanState.x - ai.lastHumanX;
+      ai.lastHumanVx = humanVelX;
+      ai.lastHumanX = humanState.x;
+
+      // Perfect prediction - 5 ticks ahead!
+      const predictedX = humanState.x + humanVelX * 5;
+      const predictedDx = predictedX - aiState.x;
+      const predictedDistance = Math.abs(predictedDx);
+
+      // State checks
+      const humanAttacking = humanState.attackState === "punch" || humanState.attackState === "heavy";
+      const humanHurt = humanState.attackState === "hurt";
+      const humanJumping = !humanState.grounded;
+      const aiStunned = now < aiState.stunEndTime;
+      const canAttack = now >= aiState.attackCooldown && aiState.attackState === "none" && !aiStunned;
+
+      const inputs: any = { left: false, right: false, up: false, attack: false, heavy: false };
+
+      // === 💀 FRAME-PERFECT COUNTER SYSTEM ===
+      // When human attacks, AI perfectly dodges and counter-attacks
+      if (humanAttacking && distance < 120 && !aiStunned) {
+        if (Math.random() < 0.98) { // 98% DODGE RATE!
+          // Perfect dodge
+          if (aiState.grounded) {
+            inputs.up = true; // Jump over
+          }
+          inputs.left = dx > 0;
+          inputs.right = dx < 0;
+          ai.counterWindow = now + 400; // Window to counter
         }
-        // Occasionally use heavy attack
-        if (Math.random() < 0.05) {
+      }
+
+      // Counter attack after dodge!
+      if (now < ai.counterWindow && canAttack && distance < 100) {
+        inputs.attack = true;
+        ai.comboCount = 1;
+        ai.lastAttackTime = now;
+      }
+
+      // === 💀 RELENTLESS PRESSURE ===
+      if (!aiStunned) {
+        // Always chase - use prediction
+        if (distance > 60) {
+          inputs.left = predictedDx < 0;
+          inputs.right = predictedDx > 0;
+        }
+
+        // === 💀 CONSTANT ATTACKING ===
+        if (canAttack && facingHuman) {
+          // In range? ATTACK!
+          if (distance <= 100) {
+            // Combo chain - up to 5 hits!
+            if (ai.comboCount < 5 && now - ai.lastAttackTime < 500) {
+              inputs.attack = true;
+              ai.comboCount++;
+              ai.lastAttackTime = now;
+            } else if (Math.random() < 0.95) { // 95% ATTACK RATE!!!
+              inputs.attack = true;
+              ai.comboCount = 1;
+              ai.lastAttackTime = now;
+            }
+          }
+
+          // Heavy attack spam when close
+          if (distance < 80 && Math.random() < 0.4) {
+            inputs.heavy = true;
+            inputs.attack = false;
+          }
+
+          // Finish with heavy when low HP
+          if (humanState.hp <= 25) {
+            inputs.heavy = true;
+            inputs.attack = false;
+          }
+        }
+
+        // === 💀 PUNISH WHEN HUMAN IS HURT ===
+        if (humanHurt && canAttack) {
+          // Free damage! Heavy attack!
           inputs.heavy = true;
         }
+
+        // === 💀 ANTI-AIR ===
+        if (humanJumping && aiState.grounded && distance < 200) {
+          inputs.up = true; // Jump to intercept
+        }
+
+        // Jump attacks
+        if (!aiState.grounded && distance < 100 && canAttack) {
+          inputs.attack = true;
+        }
+
+        // Pressure jumping
+        if (aiState.grounded && Math.random() < 0.12 && distance < 150) {
+          inputs.up = true;
+        }
+
+        // === 💀 CORNER TRAP ===
+        // If human is near edge, push them there and trap
+        const arenaWidth = match.state.arena.width;
+        const nearLeftEdge = humanState.x < 200;
+        const nearRightEdge = humanState.x > arenaWidth - 200;
+
+        if (nearLeftEdge || nearRightEdge) {
+          // Human is cornered - go aggressive!
+          if (distance > 40) {
+            inputs.left = dx < 0;
+            inputs.right = dx > 0;
+          }
+          // Constant attacks when cornered
+          if (canAttack && distance < 100) {
+            inputs.attack = Math.random() < 0.99; // 99% attack when cornered!
+          }
+        }
       }
-      
-      // Jump occasionally to avoid attacks
-      if (Math.random() < 0.02 && aiState.grounded) {
-        inputs.up = true;
+
+      // Reset combo
+      if (now - ai.lastAttackTime > 600) {
+        ai.comboCount = 0;
       }
-      
-      // Store AI inputs
+
       match.inputs[player.id] = inputs;
     }
   }
@@ -620,7 +724,7 @@ export class MatchEngine {
 
     for (const [id, match] of this.matches.entries()) {
       match.tick += 1;
-      
+
       // Clear events from previous tick
       match.state.events = [];
 
@@ -639,7 +743,7 @@ export class MatchEngine {
 
         const inputs = match.inputs[pid] || {};
         const isStunned = now < ps.stunEndTime;
-        
+
         // Reset attack state if animation ended
         if (ps.attackState !== "none" && now >= ps.attackEndTime) {
           ps.attackState = "none";
@@ -650,17 +754,17 @@ export class MatchEngine {
           // Update facing direction based on movement
           if (inputs.left) ps.facingRight = false;
           if (inputs.right) ps.facingRight = true;
-          
+
           // Horizontal velocity target
           let targetVx = 0;
           if (inputs.left) targetVx -= this.speed;
           if (inputs.right) targetVx += this.speed;
-          
+
           // Only apply movement input if not attacking
           if (ps.attackState === "none") {
             ps.vx = targetVx;
           }
-          
+
           // Jump handling
           if (inputs.up && ps.grounded) {
             ps.vy = -this.jumpVel;
@@ -695,7 +799,7 @@ export class MatchEngine {
 
         // --- Attacks ---
         const opponentId = pid === pA.id ? pB.id : pA.id;
-        
+
         // Punch attack (Z key / attack input)
         if (inputs.attack && !inputs._attackApplied) {
           console.log(`[tick] ${pid} attack button pressed, calling processAttack`);
@@ -705,7 +809,7 @@ export class MatchEngine {
         if (!inputs.attack) {
           inputs._attackApplied = false;
         }
-        
+
         // Heavy attack (X key / heavy input)
         if (inputs.heavy && !inputs._heavyApplied) {
           console.log(`[tick] ${pid} heavy button pressed, calling processAttack`);
@@ -730,11 +834,11 @@ export class MatchEngine {
       }
 
       // Broadcast state every tick
-      const update = { 
-        type: "state", 
-        matchId: id, 
-        tick: match.tick, 
-        state: match.state 
+      const update = {
+        type: "state",
+        matchId: id,
+        tick: match.tick,
+        state: match.state
       };
       for (const player of match.players) {
         try {
@@ -748,11 +852,11 @@ export class MatchEngine {
       if (aState && bState) {
         if (aState.hp <= 0 || bState.hp <= 0) {
           const winnerId = aState.hp > bState.hp ? pA.id : pB.id;
-          
+
           // Add death event
           const loserId = winnerId === pA.id ? pB.id : pA.id;
           match.state.events.push({ type: "death", victim: loserId });
-          
+
           this.endMatch(match, winnerId, "hp_depleted");
           matchesToRemove.push(id);
         }
@@ -767,42 +871,42 @@ export class MatchEngine {
 
   endMatch(match: Match, winnerId: string | null, reason = "finished") {
     console.log(`[matchEngine] ending match ${match.id} winner=${winnerId} reason=${reason}`);
-    
+
     const COINS_FOR_WIN = 20;
     const COINS_FOR_LOSS = 5;
-    
+
     // Find winner and loser clients
     const winnerClient = match.players.find(p => p.id === winnerId);
     const loserClient = match.players.find(p => p.id !== winnerId);
-    
+
     // Debug: Log player profiles
     console.log(`[matchEngine] Winner client profile:`, JSON.stringify(winnerClient?.profile));
     console.log(`[matchEngine] Loser client profile:`, JSON.stringify(loserClient?.profile));
-    
+
     const winnerAddress = winnerClient?.profile?.address?.toLowerCase();
     const loserAddress = loserClient?.profile?.address?.toLowerCase();
-    
+
     console.log(`[matchEngine] Winner address: ${winnerAddress}, Loser address: ${loserAddress}`);
-    
+
     // Save match to DB and update player stats
     this.saveMatchResult(match, winnerId, winnerAddress, loserAddress, reason, COINS_FOR_WIN, COINS_FOR_LOSS);
-    
+
     // Send match_end to clients with coin rewards info
-    const payload = { 
-      type: "match_end", 
-      matchId: match.id, 
-      winner: winnerId, 
+    const payload = {
+      type: "match_end",
+      matchId: match.id,
+      winner: winnerId,
       reason,
       rewards: {
         winner: { coins: COINS_FOR_WIN },
         loser: { coins: COINS_FOR_LOSS }
       }
     };
-    
+
     for (const player of match.players) {
       try {
         player.socket.send(JSON.stringify(payload));
-      } catch (err) {}
+      } catch (err) { }
       const client = this.clients.get(player.id);
       if (client) client.status = "idle";
     }
@@ -810,9 +914,9 @@ export class MatchEngine {
   }
 
   async saveMatchResult(
-    match: Match, 
-    winnerId: string | null, 
-    winnerAddress: string | undefined, 
+    match: Match,
+    winnerId: string | null,
+    winnerAddress: string | undefined,
     loserAddress: string | undefined,
     reason: string,
     coinsForWin: number,
@@ -823,12 +927,12 @@ export class MatchEngine {
     console.log(`  - winnerAddress: ${winnerAddress}`);
     console.log(`  - loserAddress: ${loserAddress}`);
     console.log(`  - DB connected: ${isDBConnected()}`);
-    
+
     // Log all player profiles for debugging
     match.players.forEach((p, i) => {
       console.log(`  - Player ${i} (${p.id}): profile=${JSON.stringify(p.profile)}`);
     });
-    
+
     if (!isDBConnected()) {
       console.log("[matchEngine] DB not connected, skipping match save");
       return;
@@ -861,12 +965,12 @@ export class MatchEngine {
       if (winnerAddress) {
         const winnerResult = await Player.findOneAndUpdate(
           { walletAddress: winnerAddress },
-          { 
-            $inc: { 
-              coins: coinsForWin, 
-              "stats.wins": 1, 
-              "stats.totalMatches": 1 
-            } 
+          {
+            $inc: {
+              coins: coinsForWin,
+              "stats.wins": 1,
+              "stats.totalMatches": 1
+            }
           },
           { new: true, upsert: true, setDefaultsOnInsert: true }
         );
@@ -883,12 +987,12 @@ export class MatchEngine {
       if (loserAddress) {
         const loserResult = await Player.findOneAndUpdate(
           { walletAddress: loserAddress },
-          { 
-            $inc: { 
-              coins: coinsForLoss, 
-              "stats.losses": 1, 
-              "stats.totalMatches": 1 
-            } 
+          {
+            $inc: {
+              coins: coinsForLoss,
+              "stats.losses": 1,
+              "stats.totalMatches": 1
+            }
           },
           { new: true, upsert: true, setDefaultsOnInsert: true }
         );

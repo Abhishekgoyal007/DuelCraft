@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { FloatingNav } from "../components/FloatingNav";
 
 // Particle background
 function ParticleBackground() {
@@ -75,9 +76,23 @@ export default function Leaderboard() {
   };
 
   return (
-    <div className="min-h-screen relative overflow-hidden" style={{ background: "linear-gradient(135deg, #0f1724 0%, #1a2a1a 50%, #0f1724 100%)" }}>
+    <div className="min-h-screen relative overflow-hidden">
+      {/* Hall of Frame Background Image */}
+      <div
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+        style={{
+          backgroundImage: 'url(/assets/background/hallofframe.png)',
+          backgroundPosition: 'center'
+        }}
+      />
+
+      {/* Dark overlay for readability */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/70 to-black/50" />
 
       <ParticleBackground />
+
+      {/* Floating Navigation */}
+      <FloatingNav />
 
       {/* Animated glow orbs */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-20">

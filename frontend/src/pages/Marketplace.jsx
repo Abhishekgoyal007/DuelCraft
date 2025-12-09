@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useWeb3 } from "../context/Web3Context";
+import { FloatingNav } from "../components/FloatingNav";
 
 const CATEGORIES = [
   { id: "all", name: "All Items", icon: "🛒" },
@@ -18,29 +19,6 @@ const RARITY_CONFIG = {
   epic: { color: "#A855F7", gradient: "from-purple-400 to-purple-600" },
   legendary: { color: "#F59E0B", gradient: "from-amber-400 to-orange-600" }
 };
-
-// Particle background
-function ParticleBackground() {
-  return (
-    <div className="absolute inset-0 overflow-hidden pointer-events-none">
-      {[...Array(15)].map((_, i) => (
-        <div
-          key={i}
-          className="absolute rounded-full"
-          style={{
-            width: `${3 + (i % 3) * 2}px`,
-            height: `${3 + (i % 3) * 2}px`,
-            left: `${(i * 7) % 100}%`,
-            top: `${(i * 11) % 100}%`,
-            background: i % 2 === 0 ? '#00F0FF' : '#A855F7',
-            opacity: 0.3,
-            animation: `particle-float ${5 + (i % 3)}s ease-in-out infinite ${i * 0.4}s`
-          }}
-        />
-      ))}
-    </div>
-  );
-}
 
 export default function Marketplace() {
   const { user } = useAuth();
@@ -163,31 +141,51 @@ export default function Marketplace() {
   const filteredListings = selectedCategory === "all" ? listings : listings.filter(l => l.category === selectedCategory);
 
   return (
-    <div className="min-h-screen relative overflow-hidden" style={{ background: "linear-gradient(135deg, #0a1628 0%, #0f1e36 50%, #1a0f2e 100%)" }}>
+    <div className="min-h-screen relative overflow-hidden">
+      {/* Bazaar Background Image - sized to fit the sign */}
+      <div
+        className="absolute inset-0 bg-no-repeat"
+        style={{
+          backgroundImage: 'url(/assets/background/bazaar.png)',
+          backgroundSize: '100% auto',
+          backgroundPosition: 'center top'
+        }}
+      />
 
-      <ParticleBackground />
+      {/* Dark overlay - lighter at top to show title, darker at bottom for content */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/70 to-black/20" />
 
-      {/* Animated glow orbs */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-20">
-        <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-cyan-500 rounded-full filter blur-[150px] animate-pulse" />
-        <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-purple-500 rounded-full filter blur-[150px] animate-pulse" style={{ animationDelay: "1.5s" }} />
+      {/* Floating Navigation */}
+      <FloatingNav />
+
+      {/* Floating particles */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        {[...Array(15)].map((_, i) => (
+          <div
+            key={i}
+            className="absolute rounded-full"
+            style={{
+              width: `${2 + (i % 3) * 2}px`,
+              height: `${2 + (i % 3) * 2}px`,
+              left: `${(i * 5) % 100}%`,
+              top: `${(i * 7) % 100}%`,
+              background: i % 2 === 0 ? '#FFD700' : '#A855F7',
+              opacity: 0.5,
+              boxShadow: `0 0 8px ${i % 2 === 0 ? 'rgba(255,215,0,0.6)' : 'rgba(168,85,247,0.6)'}`,
+              animation: `particle-float ${6 + (i % 4)}s ease-in-out infinite ${i * 0.3}s`
+            }}
+          />
+        ))}
       </div>
 
-      <div className={`max-w-7xl mx-auto px-4 py-8 relative z-10 transition-all duration-700 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'}`}>
-        {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-5xl md:text-6xl font-black mb-4 font-display text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600"
-            style={{ textShadow: "0 0 60px rgba(0, 240, 255, 0.4)" }}>
-            🏪 BAZAAR
-          </h1>
-          <p className="text-cyan-300/80 text-lg font-semibold">Trade & Rent Cosmetic NFTs</p>
-        </div>
+      <div className={`max-w-7xl mx-auto px-4 pt-28 pb-8 relative z-10 transition-all duration-700 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'}`}>
+        {/* Header space - title is in background image */}
 
         {/* Message toast */}
         {message && (
           <div className={`fixed top-24 left-1/2 -translate-x-1/2 z-50 px-8 py-4 rounded-2xl border-2 font-bold shadow-2xl animate-bounce-in flex items-center gap-3 backdrop-blur-lg ${message.type === "success" ? "bg-green-500/90 border-green-400"
-              : message.type === "error" ? "bg-red-500/90 border-red-400"
-                : "bg-blue-500/90 border-blue-400"
+            : message.type === "error" ? "bg-red-500/90 border-red-400"
+              : "bg-blue-500/90 border-blue-400"
             } text-white`}>
             {message.text}
             <button onClick={() => setMessage(null)} className="ml-2 opacity-70 hover:opacity-100">✕</button>
@@ -199,8 +197,8 @@ export default function Marketplace() {
           <button
             onClick={() => setActiveTab("browse")}
             className={`px-8 py-4 rounded-xl font-bold text-lg transition-all duration-300 ${activeTab === "browse"
-                ? "bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-lg shadow-cyan-500/30 scale-105 border-2 border-cyan-400"
-                : "bg-white/5 text-cyan-300 hover:bg-white/10 border-2 border-white/10"
+              ? "bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-lg shadow-cyan-500/30 scale-105 border-2 border-cyan-400"
+              : "bg-white/5 text-cyan-300 hover:bg-white/10 border-2 border-white/10"
               }`}
           >
             🛒 Browse
@@ -208,8 +206,8 @@ export default function Marketplace() {
           <button
             onClick={() => setActiveTab("my-listings")}
             className={`px-8 py-4 rounded-xl font-bold text-lg transition-all duration-300 ${activeTab === "my-listings"
-                ? "bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-lg shadow-cyan-500/30 scale-105 border-2 border-cyan-400"
-                : "bg-white/5 text-cyan-300 hover:bg-white/10 border-2 border-white/10"
+              ? "bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-lg shadow-cyan-500/30 scale-105 border-2 border-cyan-400"
+              : "bg-white/5 text-cyan-300 hover:bg-white/10 border-2 border-white/10"
               }`}
           >
             📋 My Listings
@@ -232,8 +230,8 @@ export default function Marketplace() {
                   key={cat.id}
                   onClick={() => setSelectedCategory(cat.id)}
                   className={`px-6 py-3 rounded-xl font-bold whitespace-nowrap transition-all duration-300 ${selectedCategory === cat.id
-                      ? "bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-lg border-2 border-cyan-400"
-                      : "bg-white/5 text-cyan-300/70 hover:bg-white/10 hover:text-cyan-200 border-2 border-white/10"
+                    ? "bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-lg border-2 border-cyan-400"
+                    : "bg-white/5 text-cyan-300/70 hover:bg-white/10 hover:text-cyan-200 border-2 border-white/10"
                     }`}
                 >
                   <span className="mr-2">{cat.icon}</span>{cat.name}

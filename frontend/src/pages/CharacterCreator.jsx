@@ -7,6 +7,8 @@ import { CHARACTER_LIST } from "../config/characters";
 import { ethers } from "ethers";
 import { getContractAddresses } from "../config/contracts";
 import DuelCraftCharacterABI from "../contracts/abis/DuelCraftCharacter.json";
+import { FloatingNav } from "../components/FloatingNav";
+import { useToast } from "../context/ToastContext";
 
 // Use characters from config
 const PREMADE_CHARACTERS = CHARACTER_LIST;
@@ -31,7 +33,7 @@ export default function CharacterCreator() {
   useEffect(() => {
     async function checkOwnedNFT() {
       if (!user?.address) return;
-      
+
       try {
         const provider = new ethers.JsonRpcProvider('https://rpc.sepolia.mantle.xyz');
         const contractAddresses = getContractAddresses(5003);
@@ -40,9 +42,9 @@ export default function CharacterCreator() {
           DuelCraftCharacterABI,
           provider
         );
-        
+
         const tokenId = await characterContract.walletToCharacter(user.address);
-        
+
         if (tokenId > 0) {
           // User owns an NFT, get the character data
           const characterData = await characterContract.getCharacter(tokenId);
@@ -55,7 +57,7 @@ export default function CharacterCreator() {
         console.error('[CharacterCreator] Failed to check owned NFT:', err);
       }
     }
-    
+
     checkOwnedNFT();
   }, [user]);
 
@@ -66,18 +68,18 @@ export default function CharacterCreator() {
         console.log('[CharacterCreator] Skipping availability check:', { hasContracts: !!contracts?.character, isConnected });
         return;
       }
-      
+
       console.log('[CharacterCreator] Checking character availability...');
       setCheckingAvailability(true);
       try {
         const availability = {};
-        
+
         for (const char of PREMADE_CHARACTERS) {
           const isAvailable = await contracts.character.isCharacterAvailable(char.name);
           console.log(`[CharacterCreator] ${char.name} available:`, isAvailable);
           availability[char.id] = isAvailable;
         }
-        
+
         console.log('[CharacterCreator] Final availability:', availability);
         setCharacterAvailability(availability);
       } catch (err) {
@@ -86,7 +88,7 @@ export default function CharacterCreator() {
         setCheckingAvailability(false);
       }
     }
-    
+
     checkAvailability();
   }, [contracts, isConnected]);
 
@@ -150,7 +152,7 @@ export default function CharacterCreator() {
   // Mint character NFT on blockchain
   async function handleMintNFT() {
     console.log('[CharacterCreator] Mint clicked!', { selectedCharacter, isConnected, isCorrectChain });
-    
+
     if (!selectedCharacter) {
       alert("Please select a character first!");
       return;
@@ -178,7 +180,7 @@ export default function CharacterCreator() {
 
     setMinting(true);
     console.log('[CharacterCreator] Starting mint process...');
-    
+
     try {
       // Save character selection first
       if (!saved) {
@@ -213,15 +215,15 @@ export default function CharacterCreator() {
       console.log('[CharacterCreator] Calling mintCharacter with:', { characterName, customization });
       const result = await mintCharacter(characterName, customization);
       console.log('[CharacterCreator] Mint successful!', result);
-      
+
       setMintSuccess(true);
       setTxHash(result.txHash);
-      
+
       // Show success message
       setTimeout(() => {
         setMintSuccess(false);
       }, 10000);
-      
+
     } catch (err) {
       console.error('[CharacterCreator] Mint error:', err);
       console.error('[CharacterCreator] Error details:', {
@@ -230,7 +232,7 @@ export default function CharacterCreator() {
         reason: err.reason,
         data: err.data
       });
-      
+
       // Parse error messages
       if (err.message && (err.message.includes("Already owns a character") || err.message.includes("Already owns"))) {
         console.log('[CharacterCreator] Error: User already owns character');
@@ -260,238 +262,310 @@ export default function CharacterCreator() {
 
   if (loading) {
     return (
-      <div 
-        className="h-screen w-screen fixed inset-0 overflow-hidden"
-        style={{
-          backgroundImage: 'url(/assets/landingpage/landingpagebg.png)',
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          backgroundRepeat: 'no-repeat'
-        }}
-      >
-        <div className="absolute inset-0 bg-black/20" />
-        <div className="flex-1 flex items-center justify-center h-full relative z-10">
-          <div className="text-white text-2xl font-bold animate-pulse bg-black/50 px-8 py-4 rounded-2xl">Loading assets...</div>
+      <div className="min-h-screen bg-gradient-to-br from-[#0a0a1a] via-[#0f1729] to-[#0a0a1a] flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-6xl mb-4 animate-pulse">⚔️</div>
+          <div className="text-white text-xl font-bold animate-pulse">Loading characters...</div>
         </div>
       </div>
     );
   }
 
   return (
-    <div 
-      className="h-screen w-screen fixed inset-0 overflow-y-auto"
-      style={{
-        backgroundImage: 'url(/assets/landingpage/landingpagebg.png)',
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundRepeat: 'no-repeat'
-      }}
-    >
-      <div className="absolute inset-0 bg-black/20" />
-      <main className="flex-1 max-w-6xl mx-auto px-6 py-8 w-full relative z-10">
+    <div className="min-h-screen relative overflow-hidden">
+      {/* Forge Background Image */}
+      <div
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+        style={{
+          backgroundImage: 'url(/assets/background/forge.png)',
+          backgroundPosition: 'center bottom'
+        }}
+      />
+
+      {/* Dark overlay for readability */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/50 to-black/30" />
+
+      {/* Floating Navigation */}
+      <FloatingNav />
+
+      {/* Floating embers/particles */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        {[...Array(15)].map((_, i) => (
+          <div
+            key={i}
+            className="absolute rounded-full animate-float"
+            style={{
+              width: Math.random() * 4 + 2 + 'px',
+              height: Math.random() * 4 + 2 + 'px',
+              left: Math.random() * 100 + '%',
+              top: Math.random() * 100 + '%',
+              background: `rgba(${Math.random() > 0.5 ? '255, 165, 0' : '255, 100, 50'}, ${0.4 + Math.random() * 0.4})`,
+              animationDelay: Math.random() * 5 + 's',
+              animationDuration: 4 + Math.random() * 4 + 's',
+              boxShadow: '0 0 6px rgba(255, 165, 0, 0.6)'
+            }}
+          />
+        ))}
+      </div>
+
+      <main className="relative z-10 max-w-6xl mx-auto px-6 py-8">
         {/* Header */}
-        <div className="text-center mb-6">
-          <h1 className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500 mb-4 tracking-wider drop-shadow-2xl" 
-              style={{ fontFamily: "'Press Start 2P', system-ui" }}>
-            ⚔️ Character Selection ⚔️
-          </h1>
-          <p className="text-white font-bold text-xl drop-shadow-lg">Choose your fighter</p>
+        <div className="text-center mb-10 animate-fade-in">
+          <div className="inline-flex items-center gap-3 mb-4">
+            <span className="text-4xl">🔥</span>
+            <h1 className="text-4xl md:text-5xl font-black bg-gradient-to-r from-orange-400 via-amber-400 to-yellow-400 bg-clip-text text-transparent tracking-wide drop-shadow-lg">
+              CHARACTER FORGE
+            </h1>
+            <span className="text-4xl">🔥</span>
+          </div>
+          <p className="text-orange-200/80 text-lg font-medium">Choose your legendary fighter</p>
         </div>
 
-        <div className="max-w-4xl mx-auto">
+        <div className="grid lg:grid-cols-3 gap-8">
           {/* Selected Character Preview */}
-          {selectedCharData && (
-            <div className="bg-amber-100 border-4 border-amber-800 rounded-xl p-6 shadow-lg mb-6">
-              <h3 className="text-center font-bold text-amber-900 mb-4 text-xl">Selected Character</h3>
-              <div className="flex items-center justify-center gap-6">
-                {selectedCharData.image ? (
-                  <img 
-                    src={selectedCharData.image} 
-                    alt={selectedCharData.name}
-                    className="w-32 h-32 object-contain"
-                    style={{ imageRendering: 'pixelated' }}
-                  />
-                ) : (
-                  <div className="text-8xl">{selectedCharData.icon}</div>
-                )}
-                <div>
-                  <h4 className="text-2xl font-bold text-amber-900 mb-2">{selectedCharData.name}</h4>
-                  <p className="text-amber-700 mb-4">{selectedCharData.description}</p>
-                  <div className="flex gap-2">
-                    <div 
-                      className="w-16 h-16 rounded-lg border-3 border-amber-800" 
+          <div className="lg:col-span-1">
+            <div
+              className="p-6 rounded-2xl h-full animate-slide-up"
+              style={{
+                background: 'linear-gradient(145deg, rgba(251, 146, 60, 0.15) 0%, rgba(245, 158, 11, 0.05) 100%)',
+                border: '2px solid rgba(251, 146, 60, 0.3)',
+                backdropFilter: 'blur(20px)',
+                boxShadow: '0 0 40px rgba(251, 146, 60, 0.15)'
+              }}
+            >
+              <h3 className="text-center font-bold text-orange-400 mb-6 text-lg tracking-wider uppercase">
+                🔥 Selected Fighter
+              </h3>
+
+              {selectedCharData ? (
+                <div className="text-center">
+                  <div
+                    className="relative mx-auto w-40 h-40 rounded-xl mb-4 flex items-center justify-center"
+                    style={{
+                      background: 'linear-gradient(145deg, rgba(0,0,0,0.5) 0%, rgba(251,146,60,0.1) 100%)',
+                      border: '3px solid rgba(251, 146, 60, 0.5)',
+                      boxShadow: '0 0 30px rgba(251, 146, 60, 0.3)'
+                    }}
+                  >
+                    {selectedCharData.image ? (
+                      <img
+                        src={selectedCharData.image}
+                        alt={selectedCharData.name}
+                        className="w-32 h-32 object-contain animate-pulse-glow"
+                        style={{ imageRendering: 'pixelated' }}
+                      />
+                    ) : (
+                      <div className="text-7xl">{selectedCharData.icon}</div>
+                    )}
+                  </div>
+
+                  <h4 className="text-2xl font-black text-white mb-2">{selectedCharData.name}</h4>
+                  <p className="text-gray-400 text-sm mb-4">{selectedCharData.description}</p>
+
+                  <div className="flex items-center justify-center gap-3">
+                    <div
+                      className="w-12 h-12 rounded-lg border-2 border-white/20"
                       style={{ backgroundColor: selectedCharData.color }}
                     />
-                    <div className="text-sm text-amber-700">
-                      <div>Color: {selectedCharData.color}</div>
-                      <div>Stats Ready</div>
+                    <div className="text-left text-xs text-gray-400">
+                      <div>Theme: {selectedCharData.color}</div>
+                      <div className="text-green-400 font-bold">✓ Battle Ready</div>
                     </div>
                   </div>
                 </div>
-              </div>
+              ) : (
+                <div className="text-center text-gray-500 py-12">
+                  <div className="text-6xl mb-4 opacity-50">❓</div>
+                  <p>Select a character from the roster</p>
+                </div>
+              )}
             </div>
-          )}
+          </div>
 
           {/* Character Grid */}
-          <div className="bg-amber-100 border-4 border-amber-800 rounded-xl p-6 shadow-lg">
-            <h3 className="text-center font-bold text-amber-900 mb-4 text-lg">Select Your Character</h3>
-            
-            {/* Loading overlay for availability check */}
-            {checkingAvailability && (
-              <div className="text-center py-4 text-amber-700 font-bold">
-                🔍 Checking character availability on blockchain...
-              </div>
-            )}
-            
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
-              {PREMADE_CHARACTERS.map(char => {
-                const isSelected = selectedCharacter === char.id;
-                const isAvailable = characterAvailability[char.id];
-                const isOwnedByUser = ownedNFTCharacter === char.name;
-                const isTaken = isAvailable === false && !isOwnedByUser; // Taken if not available AND not owned by user
-                
-                return (
-                  <button
-                    key={char.id}
-                    onClick={() => !isTaken && selectCharacter(char.id)}
-                    disabled={isTaken}
-                    className={`relative p-6 rounded-2xl border-4 transition-all shadow-2xl ${
-                      isTaken 
-                        ? 'border-red-500 bg-red-900/50 backdrop-blur-sm opacity-60 cursor-not-allowed'
-                        : isOwnedByUser
-                        ? 'border-purple-500 bg-purple-900/70 backdrop-blur-sm ring-4 ring-purple-400'
-                        : isSelected
-                        ? 'border-green-500 bg-green-900/70 backdrop-blur-sm ring-4 ring-green-400 scale-110 transform'
-                        : 'border-yellow-500 bg-gray-900/70 backdrop-blur-sm hover:border-yellow-400 hover:scale-105 transform hover:shadow-[0_0_30px_rgba(234,179,8,0.5)]'
-                    }`}
-                  >
-                    {/* Owned NFT Badge */}
-                    {isOwnedByUser && (
-                      <div className="absolute -top-2 -right-2 bg-purple-600 text-white px-3 py-1 rounded-full text-xs font-black shadow-lg z-10 border-2 border-white">
-                        🎨 NFT
-                      </div>
-                    )}
-                    
-                    {/* Taken Badge */}
-                    {isTaken && (
-                      <div className="absolute -top-2 -right-2 bg-red-600 text-white px-3 py-1 rounded-full text-xs font-black shadow-lg z-10 border-2 border-white">
-                        🔒 TAKEN
-                      </div>
-                    )}
-                    
-                    {/* Selected Checkmark */}
-                    {isSelected && !isTaken && (
-                      <div className="absolute -top-2 -right-2 bg-green-600 text-white w-8 h-8 rounded-full flex items-center justify-center shadow-lg z-10 border-2 border-white">
-                        ✓
-                      </div>
-                    )}
-                    
-                    <div className={isTaken ? 'filter grayscale' : ''}>
-                      {char.image ? (
-                        <img 
-                          src={char.image} 
-                          alt={char.name}
-                          className="w-24 h-24 mx-auto mb-2 object-contain"
-                          style={{ imageRendering: 'pixelated' }}
-                        />
-                      ) : (
-                        <div className="text-6xl mb-2 text-center">{char.icon}</div>
+          <div className="lg:col-span-2">
+            <div
+              className="p-6 rounded-2xl animate-slide-up"
+              style={{
+                background: 'linear-gradient(145deg, rgba(0,0,0,0.5) 0%, rgba(245, 158, 11, 0.05) 100%)',
+                border: '2px solid rgba(245, 158, 11, 0.2)',
+                backdropFilter: 'blur(20px)',
+                animationDelay: '0.1s'
+              }}
+            >
+              <h3 className="text-center font-bold text-amber-400 mb-6 text-lg tracking-wider uppercase">
+                ⚔️ Fighter Roster
+              </h3>
+
+              {checkingAvailability && (
+                <div className="text-center py-4 text-amber-400 font-medium animate-pulse">
+                  🔍 Scanning blockchain for availability...
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+                {PREMADE_CHARACTERS.map((char, index) => {
+                  const isSelected = selectedCharacter === char.id;
+                  const isAvailable = characterAvailability[char.id];
+                  const isOwnedByUser = ownedNFTCharacter === char.name;
+                  const isTaken = isAvailable === false && !isOwnedByUser;
+
+                  return (
+                    <button
+                      key={char.id}
+                      onClick={() => !isTaken && selectCharacter(char.id)}
+                      disabled={isTaken}
+                      className={`relative p-4 rounded-xl transition-all duration-300 animate-fade-in ${isTaken
+                        ? 'opacity-50 cursor-not-allowed'
+                        : 'hover:scale-105 cursor-pointer'
+                        }`}
+                      style={{
+                        animationDelay: `${index * 0.05}s`,
+                        background: isTaken
+                          ? 'linear-gradient(145deg, rgba(239,68,68,0.1) 0%, rgba(0,0,0,0.4) 100%)'
+                          : isOwnedByUser
+                            ? 'linear-gradient(145deg, rgba(168,85,247,0.2) 0%, rgba(0,0,0,0.4) 100%)'
+                            : isSelected
+                              ? 'linear-gradient(145deg, rgba(34,197,94,0.2) 0%, rgba(0,0,0,0.4) 100%)'
+                              : 'linear-gradient(145deg, rgba(255,255,255,0.05) 0%, rgba(0,0,0,0.3) 100%)',
+                        border: isTaken
+                          ? '2px solid rgba(239,68,68,0.5)'
+                          : isOwnedByUser
+                            ? '2px solid rgba(168,85,247,0.6)'
+                            : isSelected
+                              ? '3px solid rgba(34,197,94,0.8)'
+                              : '2px solid rgba(255,255,255,0.1)',
+                        boxShadow: isSelected && !isTaken
+                          ? '0 0 30px rgba(34,197,94,0.4)'
+                          : isOwnedByUser
+                            ? '0 0 20px rgba(168,85,247,0.3)'
+                            : 'none'
+                      }}
+                    >
+                      {/* Badges */}
+                      {isOwnedByUser && (
+                        <div className="absolute -top-2 -right-2 bg-purple-600 text-white px-2 py-1 rounded-full text-xs font-bold shadow-lg z-10">
+                          🎨 YOUR NFT
+                        </div>
                       )}
-                    </div>
-                    <div className="text-center font-bold text-amber-900 mb-1">{char.name}</div>
-                    <div className={`text-xs text-center mb-2 ${isTaken ? 'text-red-600 font-bold' : isOwnedByUser ? 'text-purple-600 font-bold' : 'text-amber-700'}`}>
-                      {isTaken ? '❌ Already Owned' : isOwnedByUser ? '✅ Your NFT' : char.description}
-                    </div>
-                    <div 
-                      className="w-full h-8 rounded-lg border-2 border-amber-800" 
-                      style={{ backgroundColor: char.color }}
-                    />
-                    
-                    {isSelected && (
-                      <div className="absolute -top-2 -right-2 w-8 h-8 bg-green-500 rounded-full flex items-center justify-center text-white text-lg shadow-lg">
-                        ✓
+                      {isTaken && (
+                        <div className="absolute -top-2 -right-2 bg-red-600 text-white px-2 py-1 rounded-full text-xs font-bold shadow-lg z-10">
+                          🔒 TAKEN
+                        </div>
+                      )}
+                      {isSelected && !isTaken && !isOwnedByUser && (
+                        <div className="absolute -top-2 -right-2 bg-green-600 text-white w-7 h-7 rounded-full flex items-center justify-center shadow-lg z-10 font-bold">
+                          ✓
+                        </div>
+                      )}
+
+                      <div className={isTaken ? 'filter grayscale' : ''}>
+                        {char.image ? (
+                          <img
+                            src={char.image}
+                            alt={char.name}
+                            className="w-20 h-20 mx-auto mb-3 object-contain"
+                            style={{ imageRendering: 'pixelated' }}
+                          />
+                        ) : (
+                          <div className="text-5xl mb-3 text-center">{char.icon}</div>
+                        )}
                       </div>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
 
-            {/* Save Button */}
-            <div className="flex flex-col gap-3">
-              <button
-                onClick={saveCharacter}
-                disabled={saving || !user?.address || !selectedCharacter}
-                className={`w-full py-3 rounded-lg font-bold text-white transition-all transform hover:scale-105 ${
-                  saving || !selectedCharacter ? 'bg-gray-400' : 'bg-green-600 hover:bg-green-700 shadow-lg'
-                }`}
-              >
-                {saving ? '💾 Saving...' : '💾 Save Character'}
-              </button>
-              
-              {saved && (
-                <div className="text-center text-green-700 font-semibold animate-bounce-in">
-                  ✅ Character saved!
-                </div>
-              )}
+                      <div className="text-center font-bold text-white text-sm mb-1">{char.name}</div>
+                      <div className={`text-xs text-center ${isTaken ? 'text-red-400' : isOwnedByUser ? 'text-purple-400' : 'text-gray-400'
+                        }`}>
+                        {isTaken ? '❌ Already Owned' : isOwnedByUser ? '✅ Your NFT' : char.description}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
 
-              {/* Mint NFT Button */}
-              <button
-                onClick={handleMintNFT}
-                disabled={minting || !selectedCharacter || characterAvailability[selectedCharacter] === false}
-                className={`relative w-full py-5 rounded-2xl font-black text-white text-xl transition-all transform hover:scale-105 shadow-2xl border-4 overflow-hidden ${
-                  characterAvailability[selectedCharacter] === false
-                    ? 'bg-gray-600 border-gray-700 cursor-not-allowed opacity-60'
+              {/* Action Buttons */}
+              <div className="space-y-3">
+                <button
+                  onClick={saveCharacter}
+                  disabled={saving || !user?.address || !selectedCharacter}
+                  className={`w-full py-3 rounded-xl font-bold transition-all duration-300 ${saving || !selectedCharacter
+                    ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
+                    : 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white hover:scale-[1.02] shadow-lg shadow-cyan-500/20'
+                    }`}
+                >
+                  {saving ? '💾 Saving...' : '💾 Save Character Selection'}
+                </button>
+
+                {saved && (
+                  <div className="text-center text-green-400 font-semibold animate-bounce-in">
+                    ✅ Character saved successfully!
+                  </div>
+                )}
+
+                {/* Mint NFT Button */}
+                <button
+                  onClick={handleMintNFT}
+                  disabled={minting || !selectedCharacter || characterAvailability[selectedCharacter] === false}
+                  className={`relative w-full py-4 rounded-xl font-black text-white text-lg transition-all duration-300 overflow-hidden ${characterAvailability[selectedCharacter] === false
+                    ? 'bg-gray-700 cursor-not-allowed opacity-60'
                     : mintSuccess
-                    ? 'bg-gradient-to-r from-green-500 to-emerald-600 border-green-700 animate-pulse'
-                    : minting
-                    ? 'bg-gradient-to-r from-yellow-500 to-amber-600 border-yellow-700 opacity-75'
-                    : 'bg-gradient-to-r from-purple-600 to-pink-600 border-purple-800 hover:from-purple-700 hover:to-pink-700'
-                }`}
-              >
-                <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
-                <span className="relative z-10">
-                  {characterAvailability[selectedCharacter] === false 
-                    ? '🔒 CHARACTER TAKEN' 
-                    : mintSuccess 
-                    ? '✓ NFT MINTED!' 
-                    : minting 
-                    ? '⏳ MINTING...' 
-                    : '🎨 MINT CHARACTER NFT'}
-                </span>
-              </button>
-
-              {/* Success message with transaction link */}
-              {mintSuccess && txHash && (
-                <div className="bg-green-100 border-4 border-green-500 rounded-xl p-4">
-                  <p className="text-green-800 font-bold text-center mb-2">
-                    🎉 Character NFT Minted Successfully!
-                  </p>
-                  <a
-                    href={`https://explorer.sepolia.mantle.xyz/tx/${txHash}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-purple-700 underline hover:text-purple-900 text-sm block text-center"
-                  >
-                    View on Explorer →
-                  </a>
-                </div>
-              )}
-              
-              {!user?.address && (
-                <div className="text-center text-red-600 text-xs">
-                  Connect wallet to save
-                </div>
-              )}
-
-              <Link to="/hub" className="block">
-                <button className="relative w-full py-4 bg-gradient-to-r from-gray-700 to-gray-800 hover:from-gray-600 hover:to-gray-700 text-white font-bold rounded-2xl transition-all transform hover:scale-105 shadow-lg border-4 border-gray-600 overflow-hidden">
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
-                  <span className="relative z-10 flex items-center justify-center gap-2 text-lg">
-                    <span>←</span> Back to Hub
+                      ? 'bg-gradient-to-r from-green-500 to-emerald-600 animate-pulse'
+                      : minting
+                        ? 'bg-gradient-to-r from-yellow-500 to-amber-600'
+                        : 'bg-gradient-to-r from-purple-600 via-pink-500 to-purple-600 hover:scale-[1.02] shadow-lg shadow-purple-500/30'
+                    }`}
+                  style={{
+                    backgroundSize: '200% 100%',
+                    animation: !minting && !mintSuccess && characterAvailability[selectedCharacter] !== false
+                      ? 'shimmer 3s infinite'
+                      : undefined
+                  }}
+                >
+                  <span className="relative z-10">
+                    {characterAvailability[selectedCharacter] === false
+                      ? '🔒 CHARACTER TAKEN'
+                      : mintSuccess
+                        ? '✅ NFT MINTED!'
+                        : minting
+                          ? '⏳ MINTING ON CHAIN...'
+                          : '🎨 MINT CHARACTER NFT'}
                   </span>
                 </button>
-              </Link>
+
+                {/* Success message */}
+                {mintSuccess && txHash && (
+                  <div
+                    className="p-4 rounded-xl text-center animate-bounce-in"
+                    style={{
+                      background: 'linear-gradient(145deg, rgba(34,197,94,0.2) 0%, rgba(0,0,0,0.3) 100%)',
+                      border: '2px solid rgba(34,197,94,0.5)'
+                    }}
+                  >
+                    <p className="text-green-400 font-bold mb-2">
+                      🎉 Character NFT Minted Successfully!
+                    </p>
+                    <a
+                      href={`https://explorer.sepolia.mantle.xyz/tx/${txHash}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-cyan-400 underline hover:text-cyan-300 text-sm"
+                    >
+                      View on Mantle Explorer →
+                    </a>
+                  </div>
+                )}
+
+                {!user?.address && (
+                  <div className="text-center text-amber-400 text-sm">
+                    ⚠️ Connect wallet to save and mint
+                  </div>
+                )}
+
+                <Link to="/hub" className="block">
+                  <button className="w-full py-3 bg-gray-800/50 hover:bg-gray-700/50 text-gray-300 font-bold rounded-xl transition-all duration-300 border border-gray-600/30 hover:border-gray-500/50">
+                    ← Back to Hub
+                  </button>
+                </Link>
+              </div>
             </div>
           </div>
         </div>

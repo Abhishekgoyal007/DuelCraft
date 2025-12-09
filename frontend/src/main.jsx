@@ -7,12 +7,18 @@ import "./index.css";
 
 import { AuthProvider } from "./context/AuthContext";
 import { Web3Provider } from "./context/Web3Context";
+import { ToastProvider } from "./context/ToastContext";
+import { TutorialProvider } from "./components/Tutorial";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <AuthProvider>
       <Web3Provider>
-        <RouterProvider router={router} />
+        <ToastProvider>
+          <TutorialProvider>
+            <RouterProvider router={router} />
+          </TutorialProvider>
+        </ToastProvider>
       </Web3Provider>
     </AuthProvider>
   </React.StrictMode>

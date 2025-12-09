@@ -10,6 +10,8 @@ import { getContractAddresses } from "../config/contracts";
 import DuelCraftCharacterABI from "../contracts/abis/DuelCraftCharacter.json";
 import TierSelectionModal from "../components/CashDuel/TierSelectionModal";
 import WaitingScreen from "../components/CashDuel/WaitingScreen";
+import { FloatingNav } from "../components/FloatingNav";
+import { useToast } from "../context/ToastContext";
 
 // ===== REUSABLE COMPONENTS =====
 
@@ -71,8 +73,10 @@ function Cloud({ initialX, y, speed, size, delay }) {
   );
 }
 
-// Premium stat card
+// Premium stat card - supports both emoji and image icons
 function StatCard({ icon, value, label, gradient, borderColor, glowColor }) {
+  const isImageIcon = typeof icon === 'string' && icon.startsWith('/');
+
   return (
     <div
       className={`relative ${gradient} px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-3 border-4 ${borderColor} transform hover:scale-110 transition-all duration-300 overflow-hidden group cursor-default`}
@@ -83,7 +87,11 @@ function StatCard({ icon, value, label, gradient, borderColor, glowColor }) {
       {/* Overlay */}
       <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
 
-      <span className="text-3xl drop-shadow-lg relative z-10 group-hover:scale-125 transition-transform">{icon}</span>
+      {isImageIcon ? (
+        <img src={icon} alt="" className="w-10 h-10 object-contain drop-shadow-lg relative z-10 group-hover:scale-125 transition-transform" />
+      ) : (
+        <span className="text-3xl drop-shadow-lg relative z-10 group-hover:scale-125 transition-transform">{icon}</span>
+      )}
       <div className="relative z-10">
         <div className="text-2xl font-black text-white drop-shadow-lg font-display">{value}</div>
         <div className="text-[9px] font-black text-white/80 tracking-wider uppercase">{label}</div>
@@ -92,8 +100,10 @@ function StatCard({ icon, value, label, gradient, borderColor, glowColor }) {
   );
 }
 
-// Premium action card for hub menu
-function ActionCard({ to, icon, title, subtitle, gradient, borderColor, delay, isNew, onClick }) {
+// Premium action card for hub menu - supports both emoji and image icons
+function ActionCard({ to, icon, title, subtitle, gradient, borderColor, delay, isNew, onClick, dataTutorial }) {
+  const isImageIcon = typeof icon === 'string' && icon.startsWith('/');
+
   const CardContent = () => (
     <div
       className={`relative h-full ${gradient} p-5 rounded-2xl text-white shadow-2xl transition-all duration-300 border-4 ${borderColor} transform hover:-translate-y-3 hover:scale-105 flex flex-col justify-center items-center overflow-hidden group cursor-pointer`}
@@ -116,7 +126,11 @@ function ActionCard({ to, icon, title, subtitle, gradient, borderColor, delay, i
       )}
 
       <div className="relative z-10 text-center">
-        <div className="text-5xl mb-3 group-hover:scale-125 transition-transform duration-300 drop-shadow-lg">{icon}</div>
+        {isImageIcon ? (
+          <img src={icon} alt="" className="w-16 h-16 object-contain mx-auto mb-3 group-hover:scale-125 transition-transform duration-300 drop-shadow-lg" />
+        ) : (
+          <div className="text-5xl mb-3 group-hover:scale-125 transition-transform duration-300 drop-shadow-lg">{icon}</div>
+        )}
         <div className="text-xl font-black drop-shadow-lg tracking-wide font-display">{title}</div>
         <div className="text-white/80 font-bold text-xs mt-1">{subtitle}</div>
       </div>
@@ -125,14 +139,14 @@ function ActionCard({ to, icon, title, subtitle, gradient, borderColor, delay, i
 
   if (to) {
     return (
-      <Link to={to} className="group h-full animate-fade-in" style={{ animationDelay: `${delay}ms` }}>
+      <Link to={to} className="group h-full animate-fade-in" style={{ animationDelay: `${delay}ms` }} data-tutorial={dataTutorial}>
         <CardContent />
       </Link>
     );
   }
 
   return (
-    <div className="group h-full animate-fade-in" style={{ animationDelay: `${delay}ms` }}>
+    <div className="group h-full animate-fade-in" style={{ animationDelay: `${delay}ms` }} data-tutorial={dataTutorial}>
       <CardContent />
     </div>
   );
@@ -148,7 +162,7 @@ function FighterPreview({ selectedCharacter, hasNFT, nftTokenId, checkingNFT }) 
         <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-cyan-500 via-purple-500 to-pink-500" />
 
         <h3 className="text-lg font-black text-white mb-3 font-display flex items-center gap-2">
-          <span className="text-2xl">⚔️</span> YOUR FIGHTER
+          <img src="/assets/logos/swordicon.png" alt="" className="w-6 h-6" /> YOUR FIGHTER
         </h3>
 
         {selectedCharacter ? (
@@ -183,7 +197,7 @@ function FighterPreview({ selectedCharacter, hasNFT, nftTokenId, checkingNFT }) 
           >
             <div className="text-center">
               <div className="w-20 h-20 mx-auto mb-3 rounded-full bg-white/10 flex items-center justify-center border-2 border-dashed border-white/30 animate-pulse">
-                <span className="text-4xl">❓</span>
+                <img src="/assets/logos/warrior.png" alt="" className="w-10 h-10 opacity-50" />
               </div>
               <p className="text-white/70 font-bold text-sm">No fighter selected</p>
               <p className="text-white/50 text-xs mt-1">Create your champion!</p>
@@ -204,7 +218,7 @@ function FighterPreview({ selectedCharacter, hasNFT, nftTokenId, checkingNFT }) 
         ) : hasNFT ? (
           <div className="relative z-10">
             <div className="flex items-center gap-3 mb-3">
-              <span className="text-3xl animate-pulse">💎</span>
+              <img src="/assets/logos/gem.png" alt="" className="w-8 h-8" />
               <div>
                 <h3 className="font-black text-white font-display">NFT SECURED</h3>
                 <p className="text-purple-300 text-xs">On-Chain Asset</p>
@@ -235,7 +249,7 @@ function FighterPreview({ selectedCharacter, hasNFT, nftTokenId, checkingNFT }) 
           </div>
         ) : (
           <div className="relative z-10 text-center">
-            <div className="text-4xl mb-2 opacity-50">🎭</div>
+            <img src="/assets/logos/gem.png" alt="" className="w-10 h-10 mx-auto mb-2 opacity-50" />
             <h3 className="font-black text-white/70 font-display">NO NFT FOUND</h3>
             <p className="text-white/50 text-xs mt-1 mb-3">Mint your fighter on-chain!</p>
 
@@ -450,6 +464,9 @@ export default function Hub() {
       <Cloud initialX={40} y={12} speed={0.04} size={1} delay={1} />
       <Cloud initialX={70} y={8} speed={0.05} size={0.9} delay={2} />
 
+      {/* Floating Navigation */}
+      <FloatingNav showHome={false} />
+
       <main className={`relative z-10 max-w-7xl mx-auto px-4 py-6 flex flex-col min-h-screen transition-all duration-700 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'}`}>
 
         {/* Top Stats Bar */}
@@ -459,12 +476,12 @@ export default function Hub() {
             <Link to="/">
               <div className="relative bg-gradient-to-br from-blue-500 to-cyan-600 px-4 py-4 rounded-2xl shadow-2xl flex items-center justify-center border-4 border-blue-700 transform hover:scale-110 transition-all hover:-rotate-3 overflow-hidden cursor-pointer group">
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-500" />
-                <span className="text-3xl drop-shadow-lg relative z-10">🏠</span>
+                <img src="/assets/logos/home.png" alt="Home" className="w-8 h-8 object-contain drop-shadow-lg relative z-10" />
               </div>
             </Link>
 
             <StatCard
-              icon="💰"
+              icon="/assets/logos/coin.png"
               value={coins}
               label="Gold Stash"
               gradient="bg-gradient-to-br from-yellow-500 via-amber-500 to-orange-600"
@@ -473,7 +490,7 @@ export default function Hub() {
             />
 
             <StatCard
-              icon="💎"
+              icon="/assets/logos/gem.png"
               value={arenaBalance || '0.00'}
               label="Arena Tokens"
               gradient="bg-gradient-to-br from-purple-600 via-violet-600 to-fuchsia-700"
@@ -482,7 +499,7 @@ export default function Hub() {
             />
 
             <StatCard
-              icon="👑"
+              icon="/assets/logos/trophy.png"
               value={stats.wins || 0}
               label="Victories"
               gradient="bg-gradient-to-br from-emerald-500 via-green-500 to-teal-600"
@@ -491,7 +508,7 @@ export default function Hub() {
             />
 
             <StatCard
-              icon="⚔️"
+              icon="/assets/logos/swordicon.png"
               value={stats.losses || 0}
               label="Defeats"
               gradient="bg-gradient-to-br from-red-600 via-rose-600 to-red-800"
@@ -540,7 +557,7 @@ export default function Hub() {
             {/* Header */}
             <div className="mb-4 text-center lg:text-left">
               <h1 className="text-4xl font-black text-white font-display drop-shadow-lg flex items-center justify-center lg:justify-start gap-3">
-                <span>⚔️</span> GAME HUB
+                <img src="/assets/logos/swordicon.png" alt="" className="w-10 h-10" /> GAME HUB
               </h1>
               <p className="text-white/70 font-semibold">Choose your destiny and battle!</p>
             </div>
@@ -549,37 +566,40 @@ export default function Hub() {
             <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
               <ActionCard
                 to="/arena"
-                icon="⚔️"
+                icon="/assets/logos/swordicon.png"
                 title="BATTLE!"
                 subtitle="⚡ Instant Combat ⚡"
                 gradient="bg-gradient-to-br from-red-600 via-red-700 to-red-900"
                 borderColor="border-red-900"
                 delay={0}
+                dataTutorial="battle"
               />
 
               <ActionCard
                 to="/creator"
-                icon="🎨"
+                icon="/assets/logos/warrior.png"
                 title="FORGE HERO"
                 subtitle="✦ Craft Your Legend ✦"
                 gradient="bg-gradient-to-br from-amber-400 via-yellow-500 to-orange-500"
                 borderColor="border-yellow-600"
                 delay={50}
+                dataTutorial="forge"
               />
 
               <ActionCard
                 to="/shop"
-                icon="💰"
+                icon="/assets/logos/coin.png"
                 title="ARMORY"
                 subtitle="⚜️ Gear & Glory ⚜️"
                 gradient="bg-gradient-to-br from-purple-600 via-violet-600 to-purple-800"
                 borderColor="border-purple-900"
                 delay={100}
+                dataTutorial="shop"
               />
 
               <ActionCard
                 to="/marketplace"
-                icon="🎭"
+                icon="/assets/logos/bazaar.png"
                 title="BAZAAR"
                 subtitle="💎 NFT Exchange 💎"
                 gradient="bg-gradient-to-br from-cyan-500 via-blue-600 to-indigo-700"
@@ -589,7 +609,7 @@ export default function Hub() {
 
               <ActionCard
                 to="/tournament"
-                icon="👑"
+                icon="/assets/logos/trophy.png"
                 title="ARENA WAR"
                 subtitle="⚡ Glory Awaits ⚡"
                 gradient="bg-gradient-to-br from-pink-600 via-rose-600 to-purple-700"
@@ -599,7 +619,7 @@ export default function Hub() {
 
               <ActionCard
                 to="/season-pass"
-                icon="🌟"
+                icon="/assets/logos/star.png"
                 title="VIP PASS"
                 subtitle="✨ Elite Rewards ✨"
                 gradient="bg-gradient-to-br from-indigo-600 via-violet-600 to-purple-800"
@@ -609,7 +629,7 @@ export default function Hub() {
 
               <ActionCard
                 to="/leaderboard"
-                icon="🏅"
+                icon="/assets/logos/leaderboard.png"
                 title="HALL OF FAME"
                 subtitle="⭐ Top Legends ⭐"
                 gradient="bg-gradient-to-br from-emerald-500 via-green-600 to-teal-700"
@@ -638,7 +658,7 @@ export default function Hub() {
 
               {/* Cash Duel Button */}
               <ActionCard
-                icon="💰"
+                icon="/assets/logos/cashduel.png"
                 title="CASH DUEL"
                 subtitle="💎 Real Stakes 💎"
                 gradient="bg-gradient-to-br from-yellow-500 via-orange-500 to-red-500"

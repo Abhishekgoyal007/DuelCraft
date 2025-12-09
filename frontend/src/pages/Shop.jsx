@@ -2,6 +2,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { FloatingNav } from "../components/FloatingNav";
+import { useToast } from "../context/ToastContext";
 
 // Legacy shop items (skins, emotes etc)
 const LEGACY_SHOP_ITEMS = [
@@ -168,14 +170,40 @@ export default function Shop() {
   const filteredItems = selectedCategory === "all" ? allItems : allItems.filter(item => item.category === selectedCategory);
 
   return (
-    <div className="min-h-screen relative overflow-hidden" style={{ background: "linear-gradient(135deg, #0f1724 0%, #1a1a2e 50%, #16213e 100%)" }}>
+    <div className="min-h-screen relative overflow-hidden">
+      {/* Armory Background Image */}
+      <div
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+        style={{
+          backgroundImage: 'url(/assets/background/armory.png)',
+          backgroundPosition: 'center bottom'
+        }}
+      />
 
-      <ParticleBackground />
+      {/* Dark overlay for readability */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/60 to-black/40" />
 
-      {/* Animated glow orbs */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-30">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-500 rounded-full filter blur-[120px] animate-pulse" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-amber-500 rounded-full filter blur-[120px] animate-pulse" style={{ animationDelay: "1s" }} />
+      {/* Floating Navigation */}
+      <FloatingNav />
+
+      {/* Floating gold particles */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        {[...Array(15)].map((_, i) => (
+          <div
+            key={i}
+            className="absolute rounded-full"
+            style={{
+              width: `${3 + (i % 3) * 2}px`,
+              height: `${3 + (i % 3) * 2}px`,
+              left: `${(i * 6) % 100}%`,
+              top: `${(i * 8) % 100}%`,
+              background: i % 2 === 0 ? '#FFD700' : '#FFA500',
+              opacity: 0.4,
+              boxShadow: '0 0 8px rgba(255, 215, 0, 0.6)',
+              animation: `particle-float ${5 + (i % 4)}s ease-in-out infinite ${i * 0.3}s`
+            }}
+          />
+        ))}
       </div>
 
       <div className={`max-w-7xl mx-auto px-4 py-8 relative z-10 transition-all duration-700 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'}`}>
@@ -203,8 +231,8 @@ export default function Shop() {
         {/* Message Toast */}
         {message && (
           <div className={`fixed top-24 left-1/2 -translate-x-1/2 z-50 px-8 py-4 rounded-2xl border-2 font-bold shadow-2xl animate-bounce-in flex items-center gap-3 ${message.type === "success" ? "bg-green-500/90 border-green-400 text-white"
-              : message.type === "error" ? "bg-red-500/90 border-red-400 text-white"
-                : "bg-blue-500/90 border-blue-400 text-white"
+            : message.type === "error" ? "bg-red-500/90 border-red-400 text-white"
+              : "bg-blue-500/90 border-blue-400 text-white"
             }`} style={{ backdropFilter: "blur(10px)" }}>
             <span>{message.type === "success" ? "✅" : message.type === "error" ? "❌" : "ℹ️"}</span>
             {message.text}
@@ -219,8 +247,8 @@ export default function Shop() {
               key={cat.id}
               onClick={() => setSelectedCategory(cat.id)}
               className={`px-6 py-3 rounded-xl font-bold whitespace-nowrap transition-all duration-300 ${selectedCategory === cat.id
-                  ? "bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-lg scale-105 border-2 border-amber-400"
-                  : "bg-white/5 text-white/70 hover:bg-white/10 hover:text-white border-2 border-white/10"
+                ? "bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-lg scale-105 border-2 border-amber-400"
+                : "bg-white/5 text-white/70 hover:bg-white/10 hover:text-white border-2 border-white/10"
                 }`}
             >
               <span className="mr-2">{cat.icon}</span>
@@ -293,8 +321,8 @@ export default function Shop() {
                         onClick={() => purchaseItem(item)}
                         disabled={!canAfford || purchasing === item.id}
                         className={`px-4 py-2 rounded-xl font-black text-sm transition-all ${canAfford
-                            ? "bg-gradient-to-r from-amber-500 to-orange-600 text-white hover:from-amber-400 hover:to-orange-500 shadow-lg hover:shadow-amber-500/30 hover:scale-105"
-                            : "bg-white/10 text-white/40 cursor-not-allowed"
+                          ? "bg-gradient-to-r from-amber-500 to-orange-600 text-white hover:from-amber-400 hover:to-orange-500 shadow-lg hover:shadow-amber-500/30 hover:scale-105"
+                          : "bg-white/10 text-white/40 cursor-not-allowed"
                           }`}
                       >
                         {purchasing === item.id ? "..." : "BUY"}

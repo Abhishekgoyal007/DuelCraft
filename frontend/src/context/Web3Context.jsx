@@ -29,11 +29,12 @@ export function Web3Provider({ children }) {
   const [contracts, setContracts] = useState({});
   const [isConnected, setIsConnected] = useState(false);
   const [isCorrectChain, setIsCorrectChain] = useState(false);
+  const [arenaBalance, setArenaBalance] = useState('0.00');
 
   const initializeContracts = useCallback((signer, chainId) => {
     try {
       const addresses = getContractAddresses(chainId);
-      
+
       // Initialize contract instances with ABIs
       const contractInstances = {
         character: new Contract(addresses.DuelCraftCharacter, DuelCraftCharacterABI, signer),
@@ -57,7 +58,36 @@ export function Web3Provider({ children }) {
     setContracts({});
     setIsConnected(false);
     setIsCorrectChain(false);
+    setArenaBalance('0.00');
   }, []);
+
+  // Fetch Arena Token balance
+  const fetchArenaBalance = useCallback(async () => {
+    if (!contracts.arenaToken || !address) {
+      console.log('[Web3Context] Cannot fetch balance - missing contracts or address');
+      return;
+    }
+
+    try {
+      console.log('[Web3Context] Fetching ARENA balance for:', address);
+      const balance = await contracts.arenaToken.balanceOf(address);
+      const formatted = formatEther(balance);
+      // Format to 2 decimal places
+      const displayBalance = parseFloat(formatted).toFixed(2);
+      console.log('[Web3Context] ARENA balance:', displayBalance);
+      setArenaBalance(displayBalance);
+    } catch (error) {
+      console.error('[Web3Context] Failed to fetch ARENA balance:', error);
+      setArenaBalance('0.00');
+    }
+  }, [contracts.arenaToken, address]);
+
+  // Fetch balance when contracts and address are available
+  useEffect(() => {
+    if (contracts.arenaToken && address && isConnected) {
+      fetchArenaBalance();
+    }
+  }, [contracts.arenaToken, address, isConnected, fetchArenaBalance]);
 
   const checkConnection = useCallback(async () => {
     if (!window.ethereum) return;
@@ -65,19 +95,19 @@ export function Web3Provider({ children }) {
     try {
       const provider = new BrowserProvider(window.ethereum);
       const accounts = await provider.listAccounts();
-      
+
       if (accounts.length > 0) {
         const signer = await provider.getSigner();
         const address = await signer.getAddress();
         const network = await provider.getNetwork();
-        
+
         setProvider(provider);
         setSigner(signer);
         setAddress(address);
         setChainId(Number(network.chainId));
         setIsConnected(true);
         setIsCorrectChain(isCorrectNetwork(Number(network.chainId)));
-        
+
         // Initialize contracts
         initializeContracts(signer, Number(network.chainId));
       }
@@ -127,7 +157,7 @@ export function Web3Provider({ children }) {
     try {
       const provider = new BrowserProvider(window.ethereum);
       await provider.send('eth_requestAccounts', []);
-      
+
       const signer = await provider.getSigner();
       const address = await signer.getAddress();
       const network = await provider.getNetwork();
@@ -138,7 +168,7 @@ export function Web3Provider({ children }) {
       setAddress(address);
       setChainId(chainId);
       setIsConnected(true);
-      
+
       const correctChain = isCorrectNetwork(chainId);
       setIsCorrectChain(correctChain);
 
@@ -153,7 +183,7 @@ export function Web3Provider({ children }) {
 
       // Initialize contracts
       initializeContracts(signer, chainId);
-      
+
       return true;
     } catch (error) {
       console.error('Connection failed:', error);
@@ -164,7 +194,7 @@ export function Web3Provider({ children }) {
   // Helper function to mint character NFT
   const mintCharacter = async (characterType, avatarData) => {
     console.log('[Web3Context] mintCharacter called with:', { characterType, avatarData });
-    
+
     if (!contracts.character || !signer) {
       console.error('[Web3Context] Missing contracts or signer:', { hasContract: !!contracts.character, hasSigner: !!signer });
       throw new Error('Contracts not initialized or wallet not connected');
@@ -189,16 +219,16 @@ export function Web3Provider({ children }) {
       };
 
       console.log('[Web3Context] Sending transaction with:', { characterType, customization });
-      
+
       // Call mintCharacter on contract with characterType and customization
       const tx = await contracts.character.mintCharacter(characterType, customization);
       console.log('[Web3Context] Transaction sent:', tx.hash);
-      
+
       // Wait for transaction confirmation
       console.log('[Web3Context] Waiting for confirmation...');
       const receipt = await tx.wait();
       console.log('[Web3Context] Transaction confirmed:', receipt);
-      
+
       return {
         success: true,
         txHash: receipt.hash,
@@ -224,10 +254,12 @@ export function Web3Provider({ children }) {
     contracts,
     isConnected,
     isCorrectChain,
+    arenaBalance,
     connect,
     disconnect: disconnectWallet,
     switchToMantleNetwork,
     mintCharacter,
+    fetchArenaBalance,
     parseEther,
     formatEther,
   };

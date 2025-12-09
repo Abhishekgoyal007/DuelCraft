@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useWeb3 } from "../context/Web3Context";
+import { FloatingNav } from "../components/FloatingNav";
 
 const TOURNAMENT_PRIZES = { first: "60%", second: "25%", third: "15%" };
 
@@ -13,8 +14,9 @@ function ParticleBackground() {
           style={{
             width: `${3 + (i % 3) * 2}px`, height: `${3 + (i % 3) * 2}px`,
             left: `${(i * 7) % 100}%`, top: `${(i * 11) % 100}%`,
-            background: i % 2 === 0 ? '#FF00FF' : '#FFD700',
-            opacity: 0.3,
+            background: i % 2 === 0 ? '#FFD700' : '#F59E0B',
+            opacity: 0.4,
+            boxShadow: '0 0 8px rgba(255, 215, 0, 0.6)',
             animation: `particle-float ${5 + (i % 3)}s ease-in-out infinite ${i * 0.4}s`
           }}
         />
@@ -130,31 +132,39 @@ export default function Tournament() {
   };
 
   return (
-    <div className="min-h-screen relative overflow-hidden" style={{ background: "linear-gradient(135deg, #1a0a2e 0%, #2d1b4e 50%, #1a0a2e 100%)" }}>
+    <div className="min-h-screen relative overflow-hidden">
+      {/* Arena War Background Image */}
+      <div
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+        style={{
+          backgroundImage: 'url(/assets/background/arenawar.png)',
+          backgroundPosition: 'center'
+        }}
+      />
+
+      {/* Dark overlay for readability */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/70 to-black/50" />
 
       <ParticleBackground />
 
-      {/* Animated glow orbs */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-25">
-        <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-purple-600 rounded-full filter blur-[150px] animate-pulse" />
-        <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-pink-600 rounded-full filter blur-[150px] animate-pulse" style={{ animationDelay: "1s" }} />
-      </div>
+      {/* Floating Navigation */}
+      <FloatingNav />
 
       <div className={`max-w-7xl mx-auto px-4 py-8 relative z-10 transition-all duration-700 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'}`}>
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-5xl md:text-6xl font-black mb-4 font-display text-transparent bg-clip-text bg-gradient-to-r from-pink-400 via-purple-500 to-indigo-600"
-            style={{ textShadow: "0 0 60px rgba(236, 72, 153, 0.4)" }}>
+          <h1 className="text-5xl md:text-6xl font-black mb-4 font-display text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 via-amber-500 to-orange-500"
+            style={{ textShadow: "0 0 60px rgba(255, 215, 0, 0.4)" }}>
             🏆 ARENA WAR
           </h1>
-          <p className="text-pink-300/80 text-lg font-semibold">Compete for Glory & Prizes!</p>
+          <p className="text-amber-200/80 text-lg font-semibold">Compete for Glory & Prizes!</p>
         </div>
 
         {/* Message toast */}
         {message && (
           <div className={`fixed top-24 left-1/2 -translate-x-1/2 z-50 px-8 py-4 rounded-2xl border-2 font-bold shadow-2xl animate-bounce-in flex items-center gap-3 backdrop-blur-lg ${message.type === "success" ? "bg-green-500/90 border-green-400"
-              : message.type === "error" ? "bg-red-500/90 border-red-400"
-                : "bg-blue-500/90 border-blue-400"
+            : message.type === "error" ? "bg-red-500/90 border-red-400"
+              : "bg-blue-500/90 border-blue-400"
             } text-white`}>
             {message.text}
             <button onClick={() => setMessage(null)} className="ml-2">✕</button>
@@ -172,8 +182,8 @@ export default function Tournament() {
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={`px-8 py-4 rounded-xl font-bold text-lg transition-all duration-300 ${activeTab === tab.id
-                  ? "bg-gradient-to-r from-purple-500 to-pink-600 text-white shadow-lg shadow-purple-500/30 scale-105 border-2 border-purple-400"
-                  : "bg-white/5 text-purple-300 hover:bg-white/10 border-2 border-white/10"
+                ? "bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-lg shadow-amber-500/30 scale-105 border-2 border-amber-400"
+                : "bg-black/40 text-amber-200 hover:bg-black/60 border-2 border-amber-500/30"
                 }`}
             >
               {tab.label}
@@ -185,7 +195,7 @@ export default function Tournament() {
         {activeTab === "current" && (
           <div>
             {loading ? (
-              <div className="text-center py-20 text-purple-300 text-xl font-bold">
+              <div className="text-center py-20 text-amber-300 text-xl font-bold">
                 <div className="animate-spin text-4xl mb-4">⏳</div>
                 Loading tournament...
               </div>
@@ -205,8 +215,8 @@ export default function Tournament() {
                       { label: "Participants", value: `${activeTournament.participants}/${activeTournament.maxParticipants}`, icon: "👥" },
                       { label: "Status", value: activeTournament.hasStarted ? "🔴 IN PROGRESS" : "🟢 OPEN", icon: "📊" }
                     ].map((stat, i) => (
-                      <div key={i} className="bg-white/5 rounded-xl p-4 border border-white/10">
-                        <div className="text-purple-300/70 text-sm font-bold mb-1">{stat.label}</div>
+                      <div key={i} className="bg-black/40 rounded-xl p-4 border border-amber-500/30">
+                        <div className="text-amber-200/70 text-sm font-bold mb-1">{stat.label}</div>
                         <div className="text-white text-xl font-black font-display">{stat.value}</div>
                       </div>
                     ))}
@@ -245,7 +255,7 @@ export default function Tournament() {
                         <button
                           onClick={handleRegister}
                           disabled={activeTournament.participants >= activeTournament.maxParticipants}
-                          className="w-full py-4 rounded-xl bg-gradient-to-r from-purple-500 to-pink-600 text-white font-black text-xl hover:from-purple-400 hover:to-pink-500 transition shadow-xl disabled:opacity-50 disabled:cursor-not-allowed border-2 border-purple-400/50"
+                          className="w-full py-4 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 text-white font-black text-xl hover:from-amber-400 hover:to-orange-500 transition shadow-xl disabled:opacity-50 disabled:cursor-not-allowed border-2 border-amber-400/50"
                         >
                           {activeTournament.participants >= activeTournament.maxParticipants
                             ? "🔒 TOURNAMENT FULL"
@@ -273,7 +283,7 @@ export default function Tournament() {
                         <div className="font-black text-white mb-1 flex items-center gap-2">
                           <span>{rule.icon}</span> {rule.title}
                         </div>
-                        <div className="text-purple-300/70 text-sm">{rule.desc}</div>
+                        <div className="text-amber-200/70 text-sm">{rule.desc}</div>
                       </div>
                     ))}
                   </div>
@@ -283,7 +293,7 @@ export default function Tournament() {
               <div className="text-center py-20">
                 <div className="text-6xl mb-4">🏆</div>
                 <h3 className="text-2xl font-black text-white mb-2 font-display">No Active Tournament</h3>
-                <p className="text-purple-300/70">Check back soon!</p>
+                <p className="text-amber-200/70">Check back soon!</p>
               </div>
             )}
           </div>
@@ -299,7 +309,7 @@ export default function Tournament() {
               <div className="text-center py-12">
                 <div className="text-6xl mb-4">📭</div>
                 <h3 className="text-2xl font-black text-white mb-2">No Past Tournaments</h3>
-                <p className="text-purple-300/70">History will appear here</p>
+                <p className="text-amber-200/70">History will appear here</p>
               </div>
             ) : (
               <div className="space-y-4">
@@ -312,7 +322,7 @@ export default function Tournament() {
                       </div>
                       <div className="text-right">
                         <div className="text-yellow-400 font-black text-lg mb-1">🥇 {t.winner}</div>
-                        <div className="text-purple-300/70 text-sm">Prize: {t.prize} ARENA</div>
+                        <div className="text-amber-200/70 text-sm">Prize: {t.prize} ARENA</div>
                       </div>
                     </div>
                   </div>
@@ -348,7 +358,7 @@ export default function Tournament() {
         {/* Back button */}
         <div className="text-center mt-12">
           <Link to="/hub">
-            <button className="px-8 py-4 bg-gradient-to-r from-purple-500 to-pink-600 text-white font-bold rounded-xl hover:from-purple-400 hover:to-pink-500 transition shadow-xl border-2 border-purple-400/50 hover:scale-105">
+            <button className="px-8 py-4 bg-gradient-to-r from-amber-500 to-orange-600 text-white font-bold rounded-xl hover:from-amber-400 hover:to-orange-500 transition shadow-xl border-2 border-amber-400/50 hover:scale-105">
               ← Back to Hub
             </button>
           </Link>

@@ -14,33 +14,33 @@
   --color-primary: #66c2ff;
   --color-primary-dark: #3da8f5;
   --color-primary-light: #99d6ff;
-  
+
   /* Accent Colors */
   --color-accent: #7b61ff;
   --color-accent-dark: #5c41e6;
   --color-accent-light: #a18fff;
-  
+
   /* Gaming Color Palette */
   --color-gold: #FFD700;
   --color-gold-dark: #B8860B;
   --color-gold-light: #FFE44D;
-  
+
   --color-legendary: #FF8C00;
   --color-epic: #A855F7;
   --color-rare: #3B82F6;
   --color-uncommon: #22C55E;
   --color-common: #9CA3AF;
-  
+
   /* Background Gradients */
   --color-darkbg: #0f1724;
   --color-darkbg-lighter: #1a2332;
-  
+
   /* Semantic Colors */
   --color-success: #10B981;
   --color-error: #EF4444;
   --color-warning: #F59E0B;
   --color-info: #3B82F6;
-  
+
   /* Typography */
   --font-display: "Orbitron", "Press Start 2P", system-ui, sans-serif;
   --font-body: "Rajdhani", system-ui, sans-serif;
@@ -53,13 +53,13 @@
   --glow-accent: 0 0 20px rgba(123, 97, 255, 0.5);
   --glow-gold: 0 0 20px rgba(255, 215, 0, 0.6);
   --glow-legendary: 0 0 30px rgba(255, 140, 0, 0.7);
-  
+
   /* Border radius tokens */
   --radius-sm: 0.5rem;
   --radius-md: 1rem;
   --radius-lg: 1.5rem;
   --radius-xl: 2rem;
-  
+
   /* Transition timing */
   --transition-fast: 150ms ease;
   --transition-normal: 300ms ease;
@@ -93,7 +93,12 @@ body {
 }
 
 /* ===== TYPOGRAPHY ===== */
-h1, h2, h3, h4, h5, h6 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
   font-family: var(--font-display);
   font-weight: 700;
   line-height: 1.2;
@@ -117,12 +122,12 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .text-outline {
-  text-shadow: 
+  text-shadow:
     -2px -2px 0 #000,
     2px -2px 0 #000,
     -2px 2px 0 #000,
     2px 2px 0 #000,
-    0 0 10px rgba(0,0,0,0.5);
+    0 0 10px rgba(0, 0, 0, 0.5);
 }
 
 /* ===== PREMIUM BUTTON STYLES ===== */
@@ -140,7 +145,7 @@ h1, h2, h3, h4, h5, h6 {
   cursor: pointer;
   overflow: hidden;
   transition: all var(--transition-normal);
-  box-shadow: 
+  box-shadow:
     0 4px 15px rgba(102, 194, 255, 0.4),
     inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
@@ -152,13 +157,13 @@ h1, h2, h3, h4, h5, h6 {
   left: -100%;
   width: 100%;
   height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
   transition: left 0.5s ease;
 }
 
 .btn-primary:hover {
   transform: translateY(-2px) scale(1.02);
-  box-shadow: 
+  box-shadow:
     0 8px 25px rgba(102, 194, 255, 0.5),
     var(--glow-primary);
 }
@@ -186,14 +191,14 @@ h1, h2, h3, h4, h5, h6 {
   cursor: pointer;
   overflow: hidden;
   transition: all var(--transition-normal);
-  box-shadow: 
+  box-shadow:
     0 6px 0 #7F1D1D,
     0 8px 20px rgba(239, 68, 68, 0.4);
 }
 
 .btn-gaming:hover {
   transform: translateY(-4px);
-  box-shadow: 
+  box-shadow:
     0 10px 0 #7F1D1D,
     0 12px 30px rgba(239, 68, 68, 0.5),
     0 0 40px rgba(239, 68, 68, 0.3);
@@ -201,7 +206,7 @@ h1, h2, h3, h4, h5, h6 {
 
 .btn-gaming:active {
   transform: translateY(2px);
-  box-shadow: 
+  box-shadow:
     0 2px 0 #7F1D1D,
     0 4px 10px rgba(239, 68, 68, 0.3);
 }
@@ -217,7 +222,7 @@ h1, h2, h3, h4, h5, h6 {
   border-radius: var(--radius-lg);
   cursor: pointer;
   transition: all var(--transition-normal);
-  box-shadow: 
+  box-shadow:
     0 6px 0 #8B6914,
     0 8px 20px rgba(255, 215, 0, 0.3),
     inset 0 2px 0 rgba(255, 255, 255, 0.4);
@@ -225,7 +230,7 @@ h1, h2, h3, h4, h5, h6 {
 
 .btn-gold:hover {
   transform: translateY(-4px) scale(1.02);
-  box-shadow: 
+  box-shadow:
     0 10px 0 #8B6914,
     0 12px 30px rgba(255, 215, 0, 0.5),
     var(--glow-gold);
@@ -234,7 +239,7 @@ h1, h2, h3, h4, h5, h6 {
 /* ===== PREMIUM CARD STYLES ===== */
 .card-game {
   position: relative;
-  background: linear-gradient(145deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
   backdrop-filter: blur(20px);
   border: 2px solid rgba(255, 255, 255, 0.1);
   border-radius: var(--radius-xl);
@@ -256,7 +261,7 @@ h1, h2, h3, h4, h5, h6 {
 .card-game:hover {
   transform: translateY(-8px) scale(1.02);
   border-color: var(--color-primary);
-  box-shadow: 
+  box-shadow:
     0 20px 40px rgba(0, 0, 0, 0.3),
     0 0 30px rgba(102, 194, 255, 0.2);
 }
@@ -302,15 +307,35 @@ h1, h2, h3, h4, h5, h6 {
 
 /* Floating animation for clouds */
 @keyframes float {
-  0%, 100% { transform: translateY(0) translateX(0); }
-  25% { transform: translateY(-8px) translateX(5px); }
-  50% { transform: translateY(-4px) translateX(10px); }
-  75% { transform: translateY(-10px) translateX(5px); }
+
+  0%,
+  100% {
+    transform: translateY(0) translateX(0);
+  }
+
+  25% {
+    transform: translateY(-8px) translateX(5px);
+  }
+
+  50% {
+    transform: translateY(-4px) translateX(10px);
+  }
+
+  75% {
+    transform: translateY(-10px) translateX(5px);
+  }
 }
 
 @keyframes float-slow {
-  0%, 100% { transform: translateY(0) translateX(0); }
-  50% { transform: translateY(-15px) translateX(20px); }
+
+  0%,
+  100% {
+    transform: translateY(0) translateX(0);
+  }
+
+  50% {
+    transform: translateY(-15px) translateX(20px);
+  }
 }
 
 .animate-float {
@@ -328,8 +353,17 @@ h1, h2, h3, h4, h5, h6 {
 
 /* Twinkling stars/sparkles */
 @keyframes twinkle {
-  0%, 100% { opacity: 0.3; transform: scale(1); }
-  50% { opacity: 1; transform: scale(1.5); }
+
+  0%,
+  100% {
+    opacity: 0.3;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.5);
+  }
 }
 
 .animate-twinkle {
@@ -348,8 +382,15 @@ h1, h2, h3, h4, h5, h6 {
 
 /* Slide down animation */
 @keyframes slide-down {
-  from { opacity: 0; transform: translateY(-20px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .animate-slide-down {
@@ -358,8 +399,15 @@ h1, h2, h3, h4, h5, h6 {
 
 /* Slide up animation */
 @keyframes slide-up {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .animate-slide-up {
@@ -368,8 +416,15 @@ h1, h2, h3, h4, h5, h6 {
 
 /* Fade in animation */
 @keyframes fade-in {
-  from { opacity: 0; transform: scale(0.95); }
-  to { opacity: 1; transform: scale(1); }
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .animate-fade-in {
@@ -378,8 +433,13 @@ h1, h2, h3, h4, h5, h6 {
 
 /* Slow spin for icons */
 @keyframes spin-slow {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .animate-spin-slow {
@@ -388,10 +448,23 @@ h1, h2, h3, h4, h5, h6 {
 
 /* Bounce in for popups */
 @keyframes bounce-in {
-  0% { opacity: 0; transform: scale(0.3); }
-  50% { opacity: 1; transform: scale(1.05); }
-  70% { transform: scale(0.9); }
-  100% { transform: scale(1); }
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+
+  70% {
+    transform: scale(0.9);
+  }
+
+  100% {
+    transform: scale(1);
+  }
 }
 
 .animate-bounce-in {
@@ -400,8 +473,15 @@ h1, h2, h3, h4, h5, h6 {
 
 /* Pulse glow for buttons */
 @keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 5px rgba(255, 215, 0, 0.5); }
-  50% { box-shadow: 0 0 20px rgba(255, 215, 0, 0.8), 0 0 30px rgba(255, 215, 0, 0.4); }
+
+  0%,
+  100% {
+    box-shadow: 0 0 5px rgba(255, 215, 0, 0.5);
+  }
+
+  50% {
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.8), 0 0 30px rgba(255, 215, 0, 0.4);
+  }
 }
 
 .animate-pulse-glow {
@@ -410,11 +490,14 @@ h1, h2, h3, h4, h5, h6 {
 
 /* Legendary item pulse */
 @keyframes legendary-pulse {
-  0%, 100% { 
+
+  0%,
+  100% {
     box-shadow: 0 0 20px rgba(255, 140, 0, 0.3);
     border-color: rgba(255, 140, 0, 0.5);
   }
-  50% { 
+
+  50% {
     box-shadow: 0 0 40px rgba(255, 140, 0, 0.6), 0 0 60px rgba(255, 140, 0, 0.3);
     border-color: rgba(255, 140, 0, 0.8);
   }
@@ -422,26 +505,46 @@ h1, h2, h3, h4, h5, h6 {
 
 /* Shimmer effect */
 @keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
+  0% {
+    background-position: -200% 0;
+  }
+
+  100% {
+    background-position: 200% 0;
+  }
 }
 
 .animate-shimmer {
-  background: linear-gradient(
-    90deg, 
-    transparent 0%, 
-    rgba(255, 255, 255, 0.2) 50%, 
-    transparent 100%
-  );
+  background: linear-gradient(90deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.2) 50%,
+      transparent 100%);
   background-size: 200% 100%;
   animation: shimmer 2s infinite;
 }
 
 /* Shake animation for errors */
 @keyframes shake {
-  0%, 100% { transform: translateX(0); }
-  10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
-  20%, 40%, 60%, 80% { transform: translateX(5px); }
+
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+
+  10%,
+  30%,
+  50%,
+  70%,
+  90% {
+    transform: translateX(-5px);
+  }
+
+  20%,
+  40%,
+  60%,
+  80% {
+    transform: translateX(5px);
+  }
 }
 
 .animate-shake {
@@ -450,8 +553,15 @@ h1, h2, h3, h4, h5, h6 {
 
 /* Grass wave animation */
 @keyframes grass-wave {
-  0%, 100% { transform: rotate(-2deg); }
-  50% { transform: rotate(2deg); }
+
+  0%,
+  100% {
+    transform: rotate(-2deg);
+  }
+
+  50% {
+    transform: rotate(2deg);
+  }
 }
 
 .animate-grass {
@@ -461,10 +571,13 @@ h1, h2, h3, h4, h5, h6 {
 
 /* Glow pulse */
 @keyframes glow-pulse {
-  0%, 100% { 
+
+  0%,
+  100% {
     filter: drop-shadow(0 0 5px currentColor);
   }
-  50% { 
+
+  50% {
     filter: drop-shadow(0 0 20px currentColor) drop-shadow(0 0 40px currentColor);
   }
 }
@@ -475,25 +588,38 @@ h1, h2, h3, h4, h5, h6 {
 
 /* Scale hover effect */
 @keyframes scale-pop {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.1); }
-  100% { transform: scale(1); }
+  0% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.1);
+  }
+
+  100% {
+    transform: scale(1);
+  }
 }
 
 /* Particle float */
 @keyframes particle-float {
-  0%, 100% {
+
+  0%,
+  100% {
     transform: translateY(0) translateX(0) rotate(0deg);
     opacity: 0.8;
   }
+
   25% {
     transform: translateY(-30px) translateX(10px) rotate(90deg);
     opacity: 1;
   }
+
   50% {
     transform: translateY(-60px) translateX(-10px) rotate(180deg);
     opacity: 0.6;
   }
+
   75% {
     transform: translateY(-30px) translateX(20px) rotate(270deg);
     opacity: 0.9;
@@ -510,6 +636,7 @@ h1, h2, h3, h4, h5, h6 {
     opacity: 0;
     transform: translateY(20px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -518,6 +645,70 @@ h1, h2, h3, h4, h5, h6 {
 
 .page-enter {
   animation: page-enter 0.4s ease-out;
+}
+
+/* Victory confetti animation */
+@keyframes confetti-fall {
+  0% {
+    transform: translateY(-100vh) rotate(0deg);
+    opacity: 1;
+  }
+
+  100% {
+    transform: translateY(100vh) rotate(720deg);
+    opacity: 0;
+  }
+}
+
+.animate-confetti {
+  animation: confetti-fall 4s linear infinite;
+}
+
+/* Victory glow burst */
+@keyframes victory-burst {
+  0% {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+
+  50% {
+    transform: scale(1.1);
+    opacity: 1;
+  }
+
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-victory-burst {
+  animation: victory-burst 0.6s ease-out;
+}
+
+/* Trophy bounce */
+@keyframes trophy-bounce {
+
+  0%,
+  100% {
+    transform: translateY(0) rotate(-5deg);
+  }
+
+  25% {
+    transform: translateY(-10px) rotate(5deg);
+  }
+
+  50% {
+    transform: translateY(0) rotate(-3deg);
+  }
+
+  75% {
+    transform: translateY(-5px) rotate(3deg);
+  }
+}
+
+.animate-trophy {
+  animation: trophy-bounce 2s ease-in-out infinite;
 }
 
 /* ===== TOOLTIP STYLES ===== */
@@ -572,12 +763,10 @@ h1, h2, h3, h4, h5, h6 {
 
 /* ===== LOADING SKELETON ===== */
 .skeleton {
-  background: linear-gradient(
-    90deg,
-    rgba(255, 255, 255, 0.05) 0%,
-    rgba(255, 255, 255, 0.1) 50%,
-    rgba(255, 255, 255, 0.05) 100%
-  );
+  background: linear-gradient(90deg,
+      rgba(255, 255, 255, 0.05) 0%,
+      rgba(255, 255, 255, 0.1) 50%,
+      rgba(255, 255, 255, 0.05) 100%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
   border-radius: var(--radius-md);
@@ -612,7 +801,7 @@ h1, h2, h3, h4, h5, h6 {
     padding: 0.75rem 1.5rem;
     font-size: 0.875rem;
   }
-  
+
   .btn-gold {
     padding: 0.75rem 1.5rem;
   }

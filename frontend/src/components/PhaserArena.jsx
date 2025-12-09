@@ -9,16 +9,18 @@ export default function PhaserArena({ match }) {
   useEffect(() => {
     if (gameRef.current) return;
 
-    // ensure parent container is positioned
+    // ensure parent container is positioned and get dimensions for fullscreen
     const container = document.getElementById("phaser-container");
     if (container) {
       container.style.position = "relative";
     }
+    const width = container ? container.clientWidth : window.innerWidth;
+    const height = container ? container.clientHeight : window.innerHeight;
 
     const config = {
       type: Phaser.AUTO,
-      width: 800,
-      height: 500,
+      width: width,
+      height: height,
       parent: "phaser-container",
       audio: { noAudio: true },
       // Enable keyboard input capturing
@@ -27,6 +29,11 @@ export default function PhaserArena({ match }) {
         mouse: true,
         touch: true,
         gamepad: false
+      },
+      // Scale mode for responsive design
+      scale: {
+        mode: Phaser.Scale.RESIZE,
+        autoCenter: Phaser.Scale.CENTER_BOTH,
       },
       physics: {
         default: "arcade",
@@ -46,10 +53,10 @@ export default function PhaserArena({ match }) {
           canvas.style.zIndex = "0";          // put canvas behind UI
           canvas.style.position = "relative"; // respects stacking context
           canvas.tabIndex = 1; // Make canvas focusable
-          
+
           // Auto-focus the canvas so keyboard inputs work immediately
           canvas.focus();
-          
+
           // Click to focus hint - focus canvas when clicked
           canvas.addEventListener("click", () => {
             canvas.focus();

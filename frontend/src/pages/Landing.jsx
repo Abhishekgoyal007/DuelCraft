@@ -281,21 +281,6 @@ export default function Landing() {
               </button>
             </Link>
           </div>
-
-          {/* Stats Section */}
-          <div className="mt-8 flex justify-center gap-8 md:gap-16 animate-fade-in" style={{ animationDelay: '1s' }}>
-            <StatCounter icon="⚔️" value={1000} label="Battles" delay={1200} />
-            <StatCounter icon="👥" value={500} label="Players" delay={1400} />
-            <StatCounter icon="💎" value={10000} label="NFTs Minted" delay={1600} />
-          </div>
-
-          {/* Scroll hint */}
-          <div className="absolute bottom-20 left-1/2 -translate-x-1/2 animate-bounce opacity-70">
-            <div className="text-white text-center">
-              <p className="text-sm mb-1">Connect Wallet to Start</p>
-              <span className="text-2xl">🔽</span>
-            </div>
-          </div>
         </div>
       </div>
 
