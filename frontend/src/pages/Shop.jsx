@@ -1,20 +1,16 @@
 // src/pages/Shop.jsx
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import Navbar from "../components/Navbar";
 
 // Legacy shop items (skins, emotes etc)
 const LEGACY_SHOP_ITEMS = [
-  // Special effects (future)
-  { id: "effect_fire", name: "Fire Aura", category: "effects", price: 200, preview: "🔥", special: true },
-  { id: "effect_ice", name: "Ice Trail", category: "effects", price: 200, preview: "❄️", special: true },
-  { id: "effect_lightning", name: "Lightning Spark", category: "effects", price: 250, preview: "⚡", special: true },
-  
-  // Emotes
-  { id: "emote_dance", name: "Victory Dance", category: "emotes", price: 80, preview: "💃" },
-  { id: "emote_taunt", name: "Taunt", category: "emotes", price: 50, preview: "😤" },
-  { id: "emote_wave", name: "Wave", category: "emotes", price: 30, preview: "👋" },
+  { id: "effect_fire", name: "Fire Aura", category: "effects", price: 200, preview: "🔥", rarity: "epic" },
+  { id: "effect_ice", name: "Ice Trail", category: "effects", price: 200, preview: "❄️", rarity: "rare" },
+  { id: "effect_lightning", name: "Lightning Spark", category: "effects", price: 250, preview: "⚡", rarity: "legendary" },
+  { id: "emote_dance", name: "Victory Dance", category: "emotes", price: 80, preview: "💃", rarity: "uncommon" },
+  { id: "emote_taunt", name: "Taunt", category: "emotes", price: 50, preview: "😤", rarity: "common" },
+  { id: "emote_wave", name: "Wave", category: "emotes", price: 30, preview: "👋", rarity: "common" },
 ];
 
 const CATEGORIES = [
@@ -27,61 +23,77 @@ const CATEGORIES = [
   { id: "emotes", name: "Emotes", icon: "🎭" },
 ];
 
-// Category icons for asset preview
 const CATEGORY_ICONS = {
-  body: "🧍",
-  hair: "💇",
-  eyes: "👀",
-  mouth: "👄",
-  tops: "👕",
-  bottoms: "👖",
-  shoes: "👟",
-  effect: "✨",
-  accessory: "🎩",
-  background: "🖼️",
-  effects: "✨",
-  emotes: "🎭"
+  body: "🧍", hair: "💇", eyes: "👀", mouth: "👄", tops: "👕",
+  bottoms: "👖", shoes: "👟", effect: "✨", accessory: "🎩",
+  background: "🖼️", effects: "✨", emotes: "🎭"
 };
+
+const RARITY_CONFIG = {
+  common: { color: "#9CA3AF", glow: "rgba(156, 163, 175, 0.3)", label: "Common" },
+  uncommon: { color: "#22C55E", glow: "rgba(34, 197, 94, 0.3)", label: "Uncommon" },
+  rare: { color: "#3B82F6", glow: "rgba(59, 130, 246, 0.4)", label: "Rare" },
+  epic: { color: "#A855F7", glow: "rgba(168, 85, 247, 0.4)", label: "Epic" },
+  legendary: { color: "#F59E0B", glow: "rgba(245, 158, 11, 0.5)", label: "Legendary" }
+};
+
+// Particle background
+function ParticleBackground() {
+  return (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none">
+      {[...Array(20)].map((_, i) => (
+        <div
+          key={i}
+          className="absolute rounded-full opacity-20"
+          style={{
+            width: `${4 + (i % 4) * 2}px`,
+            height: `${4 + (i % 4) * 2}px`,
+            left: `${(i * 5) % 100}%`,
+            top: `${(i * 7) % 100}%`,
+            background: i % 2 === 0 ? '#FFD700' : '#A855F7',
+            animation: `particle-float ${6 + (i % 4)}s ease-in-out infinite ${i * 0.3}s`
+          }}
+        />
+      ))}
+    </div>
+  );
+}
 
 export default function Shop() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  
+
   const [coins, setCoins] = useState(0);
-  const [ownedItems, setOwnedItems] = useState([]); // Legacy ownedSkins
-  const [ownedAssets, setOwnedAssets] = useState([]); // New asset system
-  const [assets, setAssets] = useState([]); // Purchasable assets from API
+  const [ownedItems, setOwnedItems] = useState([]);
+  const [ownedAssets, setOwnedAssets] = useState([]);
+  const [assets, setAssets] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [purchasing, setPurchasing] = useState(null);
   const [message, setMessage] = useState(null);
+  const [isLoaded, setIsLoaded] = useState(false);
 
-  // Load player data and assets
+  useEffect(() => {
+    setIsLoaded(true);
+  }, []);
+
   useEffect(() => {
     async function loadData() {
       if (!user?.address) return;
       try {
-        // Load player profile
         const profileRes = await fetch(`http://localhost:4000/profile?address=${user.address}`);
         const profileData = await profileRes.json();
         setCoins(profileData.coins || 0);
         setOwnedItems(profileData.ownedSkins || []);
         setOwnedAssets(profileData.ownedAssets || []);
-        
-        // Load purchasable assets (price > 0)
+
         const assetsRes = await fetch("http://localhost:4000/api/assets");
         const assetsData = await assetsRes.json();
         const purchasableAssets = (assetsData.assets || [])
           .filter(a => a.price > 0 && a.isActive !== false)
           .map(a => ({
-            id: a.assetId,
-            assetId: a.assetId,
-            name: a.name,
-            category: a.category,
-            price: a.price,
-            preview: a.url ? null : CATEGORY_ICONS[a.category] || "❓",
-            imageUrl: a.url,
-            rarity: a.rarity,
-            isAsset: true // Flag to use asset purchase endpoint
+            id: a.assetId, assetId: a.assetId, name: a.name, category: a.category,
+            price: a.price, preview: a.url ? null : CATEGORY_ICONS[a.category] || "❓",
+            imageUrl: a.url, rarity: a.rarity || "common", isAsset: true
           }));
         setAssets(purchasableAssets);
       } catch (err) {
@@ -91,80 +103,60 @@ export default function Shop() {
     loadData();
   }, [user]);
 
-  // Check if item/asset is owned
   const isOwned = (item) => {
-    if (item.isAsset) {
-      return ownedAssets.includes(item.assetId);
-    }
+    if (item.isAsset) return ownedAssets.includes(item.assetId);
     return ownedItems.includes(item.id);
   };
 
-  // Purchase item (legacy) or asset (new)
   const purchaseItem = async (item) => {
     if (!user?.address) {
       setMessage({ type: "error", text: "Please connect your wallet first!" });
       return;
     }
-    
     if (coins < item.price) {
       setMessage({ type: "error", text: "Not enough coins!" });
       return;
     }
-    
     if (isOwned(item)) {
       setMessage({ type: "info", text: "You already own this item!" });
       return;
     }
-    
+
     setPurchasing(item.id);
     try {
       let res, data;
-      
+
       if (item.isAsset) {
-        // New asset purchase endpoint
         res = await fetch("http://localhost:4000/api/assets/buy", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ 
-            address: user.address, 
-            assetId: item.assetId
-          }),
+          body: JSON.stringify({ address: user.address, assetId: item.assetId }),
         });
         data = await res.json();
-        
         if (res.ok && data.ok) {
           setCoins(data.newBalance);
           setOwnedAssets(data.ownedAssets || [...ownedAssets, item.assetId]);
-          setMessage({ type: "success", text: `🎉 Successfully purchased ${item.name}!` });
+          setMessage({ type: "success", text: `🎉 Purchased ${item.name}!` });
         } else {
           setMessage({ type: "error", text: data.error || "Purchase failed" });
         }
       } else {
-        // Legacy shop purchase endpoint
         res = await fetch("http://localhost:4000/shop/purchase", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ 
-            address: user.address, 
-            itemId: item.id,
-            price: item.price 
-          }),
+          body: JSON.stringify({ address: user.address, itemId: item.id, price: item.price }),
         });
         data = await res.json();
-        
         if (res.ok && (data.ok || data.success)) {
           setCoins(data.newBalance);
           setOwnedItems(data.ownedSkins || [...ownedItems, item.id]);
-          setMessage({ type: "success", text: `🎉 Successfully purchased ${item.name}!` });
+          setMessage({ type: "success", text: `🎉 Purchased ${item.name}!` });
         } else {
           setMessage({ type: "error", text: data.error || "Purchase failed" });
         }
       }
-      
-      // Auto-hide success message
-      if (message?.type === "success") {
-        setTimeout(() => setMessage(null), 3000);
-      }
+
+      setTimeout(() => setMessage(null), 3000);
     } catch (err) {
       setMessage({ type: "error", text: "Network error. Please try again." });
     } finally {
@@ -172,109 +164,64 @@ export default function Shop() {
     }
   };
 
-  // Combine legacy items and assets
   const allItems = [...assets, ...LEGACY_SHOP_ITEMS];
-  
-  // Filter items by category
-  const filteredItems = selectedCategory === "all" 
-    ? allItems 
-    : allItems.filter(item => item.category === selectedCategory);
-
-  // Rarity colors
-  const getRarityColor = (rarity) => {
-    const colors = {
-      common: "#9CA3AF",
-      uncommon: "#22C55E", 
-      rare: "#3B82F6",
-      epic: "#A855F7",
-      legendary: "#F59E0B"
-    };
-    return colors[rarity] || colors.common;
-  };
+  const filteredItems = selectedCategory === "all" ? allItems : allItems.filter(item => item.category === selectedCategory);
 
   return (
-    <div className="min-h-screen relative overflow-hidden" style={{ background: "linear-gradient(180deg, #87CEEB 0%, #98D8E8 30%, #B8E6B8 60%, #90EE90 100%)" }}>
-      <Navbar />
-      
-      {/* Decorative elements */}
-      <div className="absolute top-20 left-10 w-20 h-12 bg-white rounded-full opacity-80" />
-      <div className="absolute top-32 right-20 w-32 h-16 bg-white rounded-full opacity-70" />
-      <div className="absolute top-16 right-40 w-16 h-10 bg-white rounded-full opacity-90" />
-      
-      {/* Ground */}
-      <div className="absolute bottom-0 left-0 right-0 h-16 bg-green-600" />
-      <div className="absolute bottom-0 left-0 right-0 h-6 bg-amber-800" />
-      
-      {/* Header */}
-      <div className="max-w-6xl mx-auto px-4 py-8 relative z-10">
+    <div className="min-h-screen relative overflow-hidden" style={{ background: "linear-gradient(135deg, #0f1724 0%, #1a1a2e 50%, #16213e 100%)" }}>
+
+      <ParticleBackground />
+
+      {/* Animated glow orbs */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-30">
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-500 rounded-full filter blur-[120px] animate-pulse" />
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-amber-500 rounded-full filter blur-[120px] animate-pulse" style={{ animationDelay: "1s" }} />
+      </div>
+
+      <div className={`max-w-7xl mx-auto px-4 py-8 relative z-10 transition-all duration-700 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'}`}>
+        {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
           <div className="text-center md:text-left">
-            <h1 
-              className="text-5xl font-black mb-2"
-              style={{
-                textShadow: "4px 4px 0 #000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000",
-                color: "#FFD700"
-              }}
-            >
-              🛒 SHOP
+            <h1 className="text-5xl font-black mb-2 font-display text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 via-amber-500 to-orange-500"
+              style={{ textShadow: "0 0 40px rgba(255, 215, 0, 0.3)" }}>
+              🛒 ARMORY
             </h1>
-            <p className="text-amber-800 font-bold">Customize your fighter with unique items!</p>
+            <p className="text-white/70 font-semibold">Customize your fighter with unique items!</p>
           </div>
-          
+
           {/* Coins display */}
-          <div 
-            className="px-8 py-4 rounded-xl shadow-lg flex items-center gap-3"
-            style={{
-              background: "linear-gradient(180deg, #FFD700 0%, #FFA500 100%)",
-              border: "4px solid #B8860B",
-              boxShadow: "0 6px 0 #8B6914"
-            }}
-          >
-            <span className="text-4xl">🪙</span>
-            <div>
-              <div className="text-3xl font-black text-amber-900">{coins}</div>
-              <div className="text-xs font-bold text-amber-700">Your Balance</div>
+          <div className="relative bg-gradient-to-br from-yellow-500 via-amber-500 to-orange-600 px-8 py-4 rounded-2xl shadow-2xl flex items-center gap-3 border-4 border-yellow-700 overflow-hidden group">
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+            <span className="text-4xl drop-shadow-lg relative z-10">🪙</span>
+            <div className="relative z-10">
+              <div className="text-3xl font-black text-white font-display">{coins}</div>
+              <div className="text-xs font-bold text-yellow-100">Your Gold</div>
             </div>
           </div>
         </div>
 
-        {/* Success/Error Popup */}
+        {/* Message Toast */}
         {message && (
-          <div className={`fixed top-24 left-1/2 -translate-x-1/2 z-50 px-8 py-5 rounded-2xl border-4 font-black text-lg shadow-2xl animate-bounce-in ${
-            message.type === "success" 
-              ? "bg-gradient-to-r from-green-400 to-emerald-500 border-green-600 text-white" 
-              : message.type === "error" 
-                ? "bg-gradient-to-r from-red-400 to-red-500 border-red-600 text-white" 
-                : "bg-gradient-to-r from-blue-400 to-blue-500 border-blue-600 text-white"
-          }`} style={{ boxShadow: "0 8px 0 rgba(0,0,0,0.3)" }}>
-            <span className="mr-3">{message.type === "success" ? "✅" : message.type === "error" ? "❌" : "ℹ️"}</span>
+          <div className={`fixed top-24 left-1/2 -translate-x-1/2 z-50 px-8 py-4 rounded-2xl border-2 font-bold shadow-2xl animate-bounce-in flex items-center gap-3 ${message.type === "success" ? "bg-green-500/90 border-green-400 text-white"
+              : message.type === "error" ? "bg-red-500/90 border-red-400 text-white"
+                : "bg-blue-500/90 border-blue-400 text-white"
+            }`} style={{ backdropFilter: "blur(10px)" }}>
+            <span>{message.type === "success" ? "✅" : message.type === "error" ? "❌" : "ℹ️"}</span>
             {message.text}
-            <button 
-              onClick={() => setMessage(null)} 
-              className="ml-4 opacity-80 hover:opacity-100 transition"
-            >
-              ✕
-            </button>
+            <button onClick={() => setMessage(null)} className="ml-2 opacity-70 hover:opacity-100">✕</button>
           </div>
         )}
 
-        {/* Categories - wooden sign style */}
-        <div 
-          className="flex gap-3 mb-8 overflow-x-auto pb-2 px-4 py-3 rounded-xl"
-          style={{
-            background: "linear-gradient(180deg, #8B4513 0%, #654321 100%)",
-            border: "4px solid #3D2914",
-          }}
-        >
+        {/* Categories */}
+        <div className="flex gap-3 mb-8 overflow-x-auto pb-2 px-2">
           {CATEGORIES.map(cat => (
             <button
               key={cat.id}
               onClick={() => setSelectedCategory(cat.id)}
-              className={`px-5 py-3 rounded-lg font-black whitespace-nowrap transition-all ${
-                selectedCategory === cat.id
-                  ? "bg-amber-400 text-amber-900 shadow-lg"
-                  : "bg-amber-900/50 text-amber-100 hover:bg-amber-800/50"
-              }`}
+              className={`px-6 py-3 rounded-xl font-bold whitespace-nowrap transition-all duration-300 ${selectedCategory === cat.id
+                  ? "bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-lg scale-105 border-2 border-amber-400"
+                  : "bg-white/5 text-white/70 hover:bg-white/10 hover:text-white border-2 border-white/10"
+                }`}
             >
               <span className="mr-2">{cat.icon}</span>
               {cat.name}
@@ -284,108 +231,98 @@ export default function Shop() {
 
         {/* Items Grid */}
         {filteredItems.length === 0 ? (
-          <div className="col-span-full text-center py-16">
+          <div className="text-center py-20">
             <div className="text-6xl mb-4">🤷</div>
-            <h3 className="text-2xl font-black text-amber-900 mb-2">No Items Found</h3>
-            <p className="text-amber-700">Try selecting a different category</p>
+            <h3 className="text-2xl font-black text-white mb-2 font-display">No Items Found</h3>
+            <p className="text-white/60">Try selecting a different category</p>
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {filteredItems.map(item => {
-            const owned = isOwned(item);
-            const canAfford = coins >= item.price;
-            
-            return (
-              <div 
-                key={item.id}
-                className={`rounded-2xl p-5 transition-all hover:scale-105 hover:-translate-y-1 ${
-                  owned ? "ring-4 ring-green-500" : ""
-                }`}
-                style={{
-                  background: "linear-gradient(180deg, #fff 0%, #f0f0f0 100%)",
-                  border: `4px solid ${item.rarity ? getRarityColor(item.rarity) : '#ccc'}`,
-                  boxShadow: "0 6px 0 #999, 0 8px 20px rgba(0,0,0,0.2)"
-                }}
-              >
-                {/* Item preview */}
-                <div 
-                  className="text-6xl text-center mb-4 py-6 rounded-xl relative overflow-hidden"
-                  style={{ background: "linear-gradient(135deg, #e0f0ff 0%, #c0e0ff 100%)" }}
+            {filteredItems.map((item, idx) => {
+              const owned = isOwned(item);
+              const canAfford = coins >= item.price;
+              const rarityConfig = RARITY_CONFIG[item.rarity] || RARITY_CONFIG.common;
+
+              return (
+                <div
+                  key={item.id}
+                  className={`relative rounded-2xl p-5 transition-all duration-300 hover:scale-105 hover:-translate-y-2 overflow-hidden group ${owned ? "ring-4 ring-green-500" : ""}`}
+                  style={{
+                    background: "linear-gradient(145deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 100%)",
+                    border: `2px solid ${rarityConfig.color}40`,
+                    boxShadow: `0 8px 32px rgba(0,0,0,0.3), 0 0 20px ${rarityConfig.glow}`,
+                    animationDelay: `${idx * 50}ms`
+                  }}
                 >
-                  {item.imageUrl ? (
-                    <img 
-                      src={item.imageUrl} 
-                      alt={item.name}
-                      className="w-full h-20 object-contain"
-                      style={{ imageRendering: 'pixelated' }}
-                    />
-                  ) : (
-                    item.preview
-                  )}
-                  {/* Rarity badge */}
-                  {item.rarity && (
-                    <div 
-                      className="absolute top-1 right-1 px-2 py-0.5 rounded text-xs font-bold text-white capitalize"
-                      style={{ backgroundColor: getRarityColor(item.rarity) }}
-                    >
-                      {item.rarity}
+                  {/* Rarity glow effect */}
+                  <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                    style={{ background: `radial-gradient(circle at 50% 0%, ${rarityConfig.glow}, transparent 70%)` }} />
+
+                  {/* Item preview */}
+                  <div className="relative text-6xl text-center mb-4 py-8 rounded-xl overflow-hidden"
+                    style={{ background: "linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%)" }}>
+                    {item.imageUrl ? (
+                      <img src={item.imageUrl} alt={item.name} className="w-full h-20 object-contain" style={{ imageRendering: 'pixelated' }} />
+                    ) : (
+                      <span className="drop-shadow-lg">{item.preview}</span>
+                    )}
+
+                    {/* Rarity badge */}
+                    <div className="absolute top-2 right-2 px-3 py-1 rounded-full text-xs font-black text-white capitalize"
+                      style={{ backgroundColor: rarityConfig.color }}>
+                      {rarityConfig.label}
                     </div>
-                  )}
-                </div>
-                
-                {/* Item info */}
-                <h3 className="text-lg font-black text-gray-800 mb-1">{item.name}</h3>
-                <p className="text-sm text-gray-500 capitalize font-bold mb-3">{item.category}</p>
-                
-                {/* Price and action */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1">
-                    <span className="text-xl">🪙</span>
-                    <span className={`font-black text-lg ${canAfford ? "text-amber-600" : "text-red-500"}`}>
-                      {item.price}
-                    </span>
                   </div>
-                  
-                  {owned ? (
-                    <span className="px-4 py-2 bg-green-500 text-white rounded-lg text-sm font-black">
-                      ✓ OWNED
-                    </span>
-                  ) : (
-                    <button
-                      onClick={() => purchaseItem(item)}
-                      disabled={!canAfford || purchasing === item.id}
-                      className={`px-4 py-2 rounded-lg font-black text-sm transition-all ${
-                        canAfford
-                          ? "bg-gradient-to-b from-green-400 to-green-600 text-white hover:from-green-500 hover:to-green-700 shadow-md"
-                          : "bg-gray-300 text-gray-500 cursor-not-allowed"
-                      }`}
-                      style={canAfford ? { boxShadow: "0 3px 0 #166534" } : {}}
-                    >
-                      {purchasing === item.id ? "..." : "BUY"}
-                    </button>
-                  )}
+
+                  <h3 className="text-lg font-black text-white mb-1 font-display">{item.name}</h3>
+                  <p className="text-sm text-white/50 capitalize font-semibold mb-4">{item.category}</p>
+
+                  {/* Price and action */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xl">🪙</span>
+                      <span className={`font-black text-lg ${canAfford ? "text-amber-400" : "text-red-400"}`}>
+                        {item.price}
+                      </span>
+                    </div>
+
+                    {owned ? (
+                      <span className="px-4 py-2 bg-green-500 text-white rounded-xl text-sm font-black">✓ OWNED</span>
+                    ) : (
+                      <button
+                        onClick={() => purchaseItem(item)}
+                        disabled={!canAfford || purchasing === item.id}
+                        className={`px-4 py-2 rounded-xl font-black text-sm transition-all ${canAfford
+                            ? "bg-gradient-to-r from-amber-500 to-orange-600 text-white hover:from-amber-400 hover:to-orange-500 shadow-lg hover:shadow-amber-500/30 hover:scale-105"
+                            : "bg-white/10 text-white/40 cursor-not-allowed"
+                          }`}
+                      >
+                        {purchasing === item.id ? "..." : "BUY"}
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
           </div>
         )}
 
         {/* Back button */}
         <div className="mt-12 text-center">
-          <button
-            onClick={() => navigate("/hub")}
-            className="px-8 py-4 font-black text-amber-900 rounded-xl transition hover:scale-105"
-            style={{
-              background: "linear-gradient(180deg, #FFD700 0%, #FFA500 100%)",
-              border: "4px solid #B8860B",
-              boxShadow: "0 4px 0 #8B6914"
-            }}
-          >
-            ← Back to Hub
-          </button>
+          <Link to="/hub">
+            <button className="px-8 py-4 font-bold text-white rounded-2xl transition-all hover:scale-105 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 shadow-xl border-2 border-purple-400/50 font-display">
+              ← Back to Hub
+            </button>
+          </Link>
         </div>
       </div>
+
+      <style>{`
+        @keyframes particle-float {
+          0%, 100% { transform: translateY(0) translateX(0); opacity: 0.2; }
+          50% { transform: translateY(-30px) translateX(15px); opacity: 0.5; }
+        }
+      `}</style>
     </div>
   );
 }

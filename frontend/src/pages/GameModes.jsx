@@ -1,5 +1,4 @@
 import { Link } from "react-router-dom";
-import Navbar from "../components/Navbar";
 
 const GAME_MODES = [
   {
@@ -67,7 +66,6 @@ const GAME_MODES = [
 export default function GameModes() {
   return (
     <div className="min-h-screen" style={{ background: "linear-gradient(180deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)" }}>
-      <Navbar />
       
       <main className="max-w-6xl mx-auto px-6 py-12">
         {/* Header */}

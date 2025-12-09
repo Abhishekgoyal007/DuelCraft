@@ -26,6 +26,15 @@ try {
   console.log("✅ Blockchain routes loaded");
 } catch (err) {
   console.log("⚠️  Blockchain routes not available (optional)");
+}
+
+// Cash Duel routes
+try {
+  const cashDuelRouter = require("./routes/cashDuel").default;
+  app.use("/api/cash-duel", cashDuelRouter);
+  console.log("✅ Cash Duel routes loaded");
+} catch (err) {
+  console.log("⚠️  Cash Duel routes not available:", err);
 }   
 
 // Simple CORS for local dev (fixed variable names)

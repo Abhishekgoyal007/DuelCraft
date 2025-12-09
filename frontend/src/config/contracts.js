@@ -13,6 +13,7 @@ export const CONTRACTS = {
       SeasonPass: '0x7385035e4436Cc987298497555094e2d4B9b89b0',
       Marketplace: '0x9edAE91e4d9Fe8B89238223CcEd674D321C0d8f7',
       Tournament: '0xcFC6599Cb85058566261d303FDD9a7f50438D2DD',
+      CashDuel: '0x75ca30BD96Afa345E46271e56BAcFb15e32aA3C4',
     },
   },
   

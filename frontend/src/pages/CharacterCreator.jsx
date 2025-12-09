@@ -1,6 +1,5 @@
 // src/pages/CharacterCreator.jsx
 import { useState, useEffect } from "react";
-import Navbar from "../components/Navbar";
 import { useAuth } from "../context/AuthContext";
 import { useWeb3 } from "../context/Web3Context";
 import { Link } from "react-router-dom";
@@ -261,26 +260,42 @@ export default function CharacterCreator() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex flex-col bg-gradient-to-b from-sky-300 via-sky-400 to-emerald-500">
-        <Navbar />
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-white text-xl animate-pulse">Loading assets...</div>
+      <div 
+        className="h-screen w-screen fixed inset-0 overflow-hidden"
+        style={{
+          backgroundImage: 'url(/assets/landingpage/landingpagebg.png)',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat'
+        }}
+      >
+        <div className="absolute inset-0 bg-black/20" />
+        <div className="flex-1 flex items-center justify-center h-full relative z-10">
+          <div className="text-white text-2xl font-bold animate-pulse bg-black/50 px-8 py-4 rounded-2xl">Loading assets...</div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-sky-300 via-sky-400 to-emerald-500">
-      <Navbar />
-      <main className="flex-1 max-w-6xl mx-auto px-6 py-8 w-full">
+    <div 
+      className="h-screen w-screen fixed inset-0 overflow-y-auto"
+      style={{
+        backgroundImage: 'url(/assets/landingpage/landingpagebg.png)',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat'
+      }}
+    >
+      <div className="absolute inset-0 bg-black/20" />
+      <main className="flex-1 max-w-6xl mx-auto px-6 py-8 w-full relative z-10">
         {/* Header */}
         <div className="text-center mb-6">
-          <h1 className="text-3xl font-bold text-white drop-shadow-lg mb-2" 
+          <h1 className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500 mb-4 tracking-wider drop-shadow-2xl" 
               style={{ fontFamily: "'Press Start 2P', system-ui" }}>
             ⚔️ Character Selection ⚔️
           </h1>
-          <p className="text-white/80 text-sm">Choose your fighter</p>
+          <p className="text-white font-bold text-xl drop-shadow-lg">Choose your fighter</p>
         </div>
 
         <div className="max-w-4xl mx-auto">
@@ -340,14 +355,14 @@ export default function CharacterCreator() {
                     key={char.id}
                     onClick={() => !isTaken && selectCharacter(char.id)}
                     disabled={isTaken}
-                    className={`relative p-4 rounded-xl border-4 transition-all ${
+                    className={`relative p-6 rounded-2xl border-4 transition-all shadow-2xl ${
                       isTaken 
-                        ? 'border-red-400 bg-red-50 opacity-60 cursor-not-allowed'
+                        ? 'border-red-500 bg-red-900/50 backdrop-blur-sm opacity-60 cursor-not-allowed'
                         : isOwnedByUser
-                        ? 'border-purple-500 bg-purple-50 ring-4 ring-purple-300'
+                        ? 'border-purple-500 bg-purple-900/70 backdrop-blur-sm ring-4 ring-purple-400'
                         : isSelected
-                        ? 'border-green-500 bg-green-100 ring-4 ring-green-400 scale-105 transform'
-                        : 'border-amber-300 bg-amber-50 hover:border-amber-500 hover:scale-105 transform'
+                        ? 'border-green-500 bg-green-900/70 backdrop-blur-sm ring-4 ring-green-400 scale-110 transform'
+                        : 'border-yellow-500 bg-gray-900/70 backdrop-blur-sm hover:border-yellow-400 hover:scale-105 transform hover:shadow-[0_0_30px_rgba(234,179,8,0.5)]'
                     }`}
                   >
                     {/* Owned NFT Badge */}
@@ -424,23 +439,26 @@ export default function CharacterCreator() {
               <button
                 onClick={handleMintNFT}
                 disabled={minting || !selectedCharacter || characterAvailability[selectedCharacter] === false}
-                className={`w-full py-4 rounded-lg font-black text-white transition-all transform hover:scale-105 shadow-xl ${
+                className={`relative w-full py-5 rounded-2xl font-black text-white text-xl transition-all transform hover:scale-105 shadow-2xl border-4 overflow-hidden ${
                   characterAvailability[selectedCharacter] === false
-                    ? 'bg-gray-400 cursor-not-allowed opacity-60'
+                    ? 'bg-gray-600 border-gray-700 cursor-not-allowed opacity-60'
                     : mintSuccess
-                    ? 'bg-gradient-to-r from-green-400 to-green-600 animate-pulse'
+                    ? 'bg-gradient-to-r from-green-500 to-emerald-600 border-green-700 animate-pulse'
                     : minting
-                    ? 'bg-gradient-to-r from-yellow-400 to-yellow-600 opacity-75'
-                    : 'bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700'
+                    ? 'bg-gradient-to-r from-yellow-500 to-amber-600 border-yellow-700 opacity-75'
+                    : 'bg-gradient-to-r from-purple-600 to-pink-600 border-purple-800 hover:from-purple-700 hover:to-pink-700'
                 }`}
               >
-                {characterAvailability[selectedCharacter] === false 
-                  ? '🔒 CHARACTER TAKEN' 
-                  : mintSuccess 
-                  ? '✓ NFT MINTED!' 
-                  : minting 
-                  ? '⏳ MINTING...' 
-                  : '🎨 MINT CHARACTER NFT'}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
+                <span className="relative z-10">
+                  {characterAvailability[selectedCharacter] === false 
+                    ? '🔒 CHARACTER TAKEN' 
+                    : mintSuccess 
+                    ? '✓ NFT MINTED!' 
+                    : minting 
+                    ? '⏳ MINTING...' 
+                    : '🎨 MINT CHARACTER NFT'}
+                </span>
               </button>
 
               {/* Success message with transaction link */}
@@ -467,8 +485,11 @@ export default function CharacterCreator() {
               )}
 
               <Link to="/hub" className="block">
-                <button className="w-full py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-semibold transition-colors">
-                  ← Back to Hub
+                <button className="relative w-full py-4 bg-gradient-to-r from-gray-700 to-gray-800 hover:from-gray-600 hover:to-gray-700 text-white font-bold rounded-2xl transition-all transform hover:scale-105 shadow-lg border-4 border-gray-600 overflow-hidden">
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
+                  <span className="relative z-10 flex items-center justify-center gap-2 text-lg">
+                    <span>←</span> Back to Hub
+                  </span>
                 </button>
               </Link>
             </div>

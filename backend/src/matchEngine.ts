@@ -176,6 +176,12 @@ export class MatchEngine {
           };
           console.log(`[matchEngine] Profile attached for ${id}:`, JSON.stringify(client.profile));
           
+          // Store cash duel info if present
+          if (msg.mode === 'cash_duel' && msg.duelId) {
+            client.meta = { mode: 'cash_duel', duelId: String(msg.duelId) }; // Ensure string
+            console.log(`[matchEngine] Cash duel mode for ${id}, duelId: ${msg.duelId} (type: ${typeof msg.duelId})`);
+          }
+          
           // Resolve equipped asset IDs to URLs for rendering, then enqueue
           this.resolveEquippedUrls(client).then(() => {
             console.log(`[matchEngine] Equipped URLs resolved for ${id}:`, client.profile?.equippedUrls);
@@ -281,12 +287,47 @@ export class MatchEngine {
   }
 
   tryMatchFromQueue() {
+    console.log(`[matchEngine] tryMatchFromQueue called, queue length: ${this.queue.length}`);
+    
+    // First, try to match cash duel players with the same duelId
+    for (let i = 0; i < this.queue.length; i++) {
+      const clientA = this.clients.get(this.queue[i]);
+      if (!clientA?.meta?.duelId) continue;
+      
+      console.log(`[matchEngine] Found cash duel player: ${clientA.id}, duelId: ${clientA.meta.duelId}`);
+      
+      // Find another player with the same duelId
+      for (let j = i + 1; j < this.queue.length; j++) {
+        const clientB = this.clients.get(this.queue[j]);
+        console.log(`[matchEngine] Comparing with player: ${clientB?.id}, duelId: ${clientB?.meta?.duelId}`);
+        
+        if (clientB?.meta?.duelId && String(clientB.meta.duelId) === String(clientA.meta.duelId)) {
+          // Found a match! Remove both from queue
+          this.queue.splice(j, 1); // Remove j first (higher index)
+          this.queue.splice(i, 1); // Then i
+          console.log(`[matchEngine] ✅ Cash duel match: ${clientA.id} vs ${clientB.id} (duelId: ${clientA.meta.duelId})`);
+          this.createMatch(clientA, clientB);
+          return this.tryMatchFromQueue(); // Recursively try again
+        }
+      }
+    }
+    
+    // Regular matchmaking for non-cash duels
     while (this.queue.length >= 2) {
       const a = this.queue.shift()!;
       const b = this.queue.shift()!;
       const ca = this.clients.get(a);
       const cb = this.clients.get(b);
       if (!ca || !cb) continue;
+      
+      // Skip if either is waiting for cash duel opponent
+      if (ca.meta?.duelId || cb.meta?.duelId) {
+        // Put them back in queue
+        this.queue.push(a);
+        this.queue.push(b);
+        break;
+      }
+      
       this.createMatch(ca, cb);
     }
   }
