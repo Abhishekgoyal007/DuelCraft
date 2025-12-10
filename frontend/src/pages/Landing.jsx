@@ -106,9 +106,11 @@ function MantleBadge() {
       <div className="relative group">
         <div className="absolute inset-0 bg-gradient-to-r from-cyan-500 to-purple-500 rounded-2xl blur-lg opacity-50 group-hover:opacity-80 transition-opacity" />
         <div className="relative glass-dark px-5 py-3 rounded-2xl flex items-center gap-3 border border-white/20 hover:border-cyan-400/50 transition-all cursor-pointer hover:scale-105">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-r from-cyan-400 to-purple-500 flex items-center justify-center text-white font-bold text-sm">
-            M
-          </div>
+          <img
+            src="/assets/logos/mantle.png"
+            alt="Mantle"
+            className="w-8 h-8 object-contain"
+          />
           <div>
             <div className="text-white font-bold text-sm font-display">Built on Mantle</div>
             <div className="text-cyan-300 text-xs">Layer 2 • Low Fees</div>

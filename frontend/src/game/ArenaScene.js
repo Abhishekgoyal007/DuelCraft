@@ -19,6 +19,7 @@ export default class ArenaScene extends Phaser.Scene {
 
   preload() {
     // Load frame-by-frame animations for characters
+    // Standard format: character folder name -> { animation type -> frame count }
     const animations = {
       'warrior': {
         idle: 4,
@@ -36,7 +37,20 @@ export default class ArenaScene extends Phaser.Scene {
       }
     };
 
-    // Load all animation frames
+    // Custom folder mappings for characters with non-standard folder names
+    // Maps internal key -> { folder: actual folder name, animFolder: animation subfolder name pattern }
+    const customCharacters = {
+      'ignatius': {
+        folder: 'Ignatius the Inferno',
+        animations: {
+          idle: { folder: 'IDLE ANIMATION', frames: 4 }
+          // Add more animations as you create them:
+          // walk: { folder: 'WALK ANIMATION', frames: 6 }
+        }
+      }
+    };
+
+    // Load standard animation frames
     Object.keys(animations).forEach(charType => {
       Object.keys(animations[charType]).forEach(animType => {
         const frameCount = animations[charType][animType];
@@ -45,6 +59,20 @@ export default class ArenaScene extends Phaser.Scene {
           const path = `/character-layers/${charType}/${animType}/frame${i}.png`;
           this.load.image(key, path);
           console.log(`[ArenaScene] Loading: ${key} from ${path}`);
+        }
+      });
+    });
+
+    // Load custom character animation frames (like Ignatius)
+    Object.keys(customCharacters).forEach(charKey => {
+      const charConfig = customCharacters[charKey];
+      Object.keys(charConfig.animations).forEach(animType => {
+        const animConfig = charConfig.animations[animType];
+        for (let i = 1; i <= animConfig.frames; i++) {
+          const key = `${charKey}_${animType}_${i}`;
+          const path = `/character-layers/${charConfig.folder}/${animConfig.folder}/frame${i}.png`;
+          this.load.image(key, path);
+          console.log(`[ArenaScene] Loading custom: ${key} from ${path}`);
         }
       });
     });
@@ -443,7 +471,7 @@ export default class ArenaScene extends Phaser.Scene {
   createCharacterAnimations() {
     console.log('[ArenaScene] Creating character animations...');
 
-    // Define animation configurations
+    // Define animation configurations for standard characters
     const animConfigs = {
       warrior: {
         idle: { frames: 4, frameRate: 6, repeat: -1 },
@@ -458,6 +486,11 @@ export default class ArenaScene extends Phaser.Scene {
         punch: { frames: 3, frameRate: 12, repeat: 0 },
         heavy: { frames: 4, frameRate: 10, repeat: 0 },
         jump: { frames: 3, frameRate: 8, repeat: 0 }
+      },
+      // Custom characters (like Ignatius) - uses same key pattern as preload
+      ignatius: {
+        idle: { frames: 4, frameRate: 6, repeat: -1 }
+        // Add more as you create them: walk, punch, heavy, jump
       }
     };
 
@@ -531,14 +564,16 @@ export default class ArenaScene extends Phaser.Scene {
 
   // Create animated character sprite
   createAnimatedCharacter(pid, characterId) {
-    // Map character IDs to folder names (char_warrior -> warrior)
+    // Map character IDs to animation folder keys
+    // These keys must match the keys used in preload() and createCharacterAnimations()
     const charTypeMap = {
       'char_warrior': 'warrior',
-      'char_mage': 'mage'
+      'char_mage': 'mage',
+      'char_ignatius': 'ignatius' // Maps to Ignatius the Inferno animations
     };
 
     const charType = charTypeMap[characterId] || 'warrior';
-    console.log(`[ArenaScene] Creating animated character: ${charType} for player ${pid}`);
+    console.log(`[ArenaScene] Creating animated character: ${charType} for player ${pid} (characterId: ${characterId})`);
 
     // Check if idle animation exists for this character
     const idleAnimKey = `${charType}_idle`;
@@ -547,6 +582,7 @@ export default class ArenaScene extends Phaser.Scene {
       return { type: 'procedural', key: this.createProceduralCharacter(pid, characterId) };
     }
 
+    console.log(`[ArenaScene] ✓ Using animated character: ${charType} with animation: ${idleAnimKey}`);
     // Return character type info for sprite creation
     return { type: 'animated', charType: charType };
   }

@@ -41,9 +41,9 @@ const TIERS = [
 function TierCard({ tier, userBalance, onSelect, isProcessing }) {
   const netProfit = (parseFloat(tier.winAmount) - parseFloat(tier.entryFee)).toFixed(1);
   const canAfford = parseFloat(userBalance) >= parseFloat(tier.entryFee);
-  
+
   return (
-    <div 
+    <div
       className={`
         relative p-6 rounded-xl border-4 ${tier.borderColor}
         bg-gradient-to-br ${tier.color}
@@ -57,34 +57,34 @@ function TierCard({ tier, userBalance, onSelect, isProcessing }) {
           ⭐ MOST POPULAR
         </div>
       )}
-      
+
       <div className="text-center">
         <div className="text-6xl mb-3 drop-shadow-lg animate-bounce">{tier.icon}</div>
         <h3 className="text-2xl font-black mb-2 drop-shadow-md">{tier.name} DUEL</h3>
         <p className="text-xs opacity-90 mb-4">{tier.description}</p>
-        
+
         <div className="space-y-3 text-left bg-black/20 rounded-lg p-4 backdrop-blur-sm">
           <div className="flex justify-between items-center">
             <span className="text-sm font-semibold">Entry Fee:</span>
             <span className="font-black text-lg">{tier.entryFee} MNT</span>
           </div>
-          
+
           <div className="flex justify-between items-center">
             <span className="text-sm font-semibold">If You Win:</span>
             <span className="font-black text-lg text-green-300">+{tier.winAmount} MNT</span>
           </div>
-          
+
           <div className="flex justify-between items-center border-t-2 border-white/30 pt-2">
             <span className="text-sm font-semibold">Net Profit:</span>
             <span className="font-black text-xl text-green-400">+{netProfit} MNT</span>
           </div>
         </div>
-        
-        <button 
+
+        <button
           className={`
             w-full mt-4 py-3 rounded-lg font-black text-lg
             ${canAfford && !isProcessing
-              ? 'bg-white text-gray-900 hover:bg-gray-100 transform hover:scale-105' 
+              ? 'bg-white text-gray-900 hover:bg-gray-100 transform hover:scale-105'
               : 'bg-gray-600 cursor-not-allowed'
             }
             transition-all shadow-lg
@@ -142,15 +142,16 @@ export default function TierSelectionModal({ isOpen, onClose, onDuelCreated }) {
       // First, check if there's an existing waiting duel for this tier
       const checkResponse = await fetch('http://localhost:4000/api/cash-duel/active');
       const checkData = await checkResponse.json();
-      
+
       console.log('[TierModal] Active duels:', checkData.activeDuels);
-      
+
+      // Look for duels that are WAITING (confirmed) or PENDING (waiting for confirmation)
       const waitingDuel = checkData.activeDuels?.find(
-        duel => duel.tier === selectedTier.id && 
-                duel.status === 'WAITING' && // WAITING status
-                duel.player1.toLowerCase() !== address.toLowerCase() // Not our own duel
+        duel => duel.tier === selectedTier.id &&
+          (duel.status === 'WAITING' || duel.status === 'PENDING') && // Accept both statuses
+          duel.player1.toLowerCase() !== address.toLowerCase() // Not our own duel
       );
-      
+
       console.log('[TierModal] Found waiting duel:', waitingDuel);
 
       const contractAddresses = getContractAddresses(5003);
@@ -162,23 +163,31 @@ export default function TierSelectionModal({ isOpen, onClose, onDuelCreated }) {
 
       let tx, receipt, duelId;
 
-      if (waitingDuel) {
-        // Join existing duel
+      if (waitingDuel && waitingDuel.status === 'WAITING') {
+        // Join existing confirmed duel
         console.log('Joining existing duel:', waitingDuel.duelId);
-        
+
         tx = await contract.joinDuel(waitingDuel.duelId, {
           value: ethers.parseEther(selectedTier.entryFee)
         });
-        
+
         console.log('Join transaction sent:', tx.hash);
         receipt = await tx.wait();
         console.log('Join transaction confirmed:', receipt.hash);
-        
+
         duelId = waitingDuel.duelId;
       } else {
+        // Pre-register our intent BEFORE blockchain transaction for faster matching
+        console.log('[TierModal] Pre-registering duel intent...');
+        await fetch('http://localhost:4000/api/cash-duel/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tier: selectedTier.id, address })
+        });
+
         // Create new duel
         console.log('Creating new duel with tier:', selectedTier.id);
-        
+
         tx = await contract.createDuel(selectedTier.id, {
           value: ethers.parseEther(selectedTier.entryFee)
         });
@@ -242,7 +251,7 @@ export default function TierSelectionModal({ isOpen, onClose, onDuelCreated }) {
           battleReady: false
         });
       }
-      
+
       handleClose();
 
     } catch (err) {
@@ -266,14 +275,14 @@ export default function TierSelectionModal({ isOpen, onClose, onDuelCreated }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* Backdrop */}
-      <div 
+      <div
         className="absolute inset-0 bg-black/70 backdrop-blur-sm"
         onClick={isProcessing ? null : handleClose}
       />
-      
+
       {/* Modal Content */}
       <div className="relative bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-3xl shadow-2xl max-w-6xl w-full mx-4 max-h-[90vh] overflow-y-auto border-4 border-yellow-500">
-        
+
         {!showConfirmation ? (
           // Tier Selection View
           <>
@@ -285,7 +294,7 @@ export default function TierSelectionModal({ isOpen, onClose, onDuelCreated }) {
                   </h2>
                   <p className="text-gray-400 font-semibold mt-2">Winner takes 90% • Loser gets nothing</p>
                 </div>
-                <button 
+                <button
                   onClick={handleClose}
                   className="text-gray-400 hover:text-white text-3xl font-bold"
                   disabled={isProcessing}
@@ -304,7 +313,7 @@ export default function TierSelectionModal({ isOpen, onClose, onDuelCreated }) {
 
             <div className="p-8">
               <h3 className="text-2xl font-black text-white mb-6 text-center">Choose Your Stakes</h3>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                 {TIERS.map(tier => (
                   <TierCard
@@ -344,17 +353,17 @@ export default function TierSelectionModal({ isOpen, onClose, onDuelCreated }) {
                 <span className="text-gray-300">Tier:</span>
                 <span className="font-black text-white">{selectedTier.icon} {selectedTier.name}</span>
               </div>
-              
+
               <div className="flex justify-between items-center text-lg">
                 <span className="text-gray-300">Entry Fee:</span>
                 <span className="font-black text-red-400 text-2xl">-{selectedTier.entryFee} MNT</span>
               </div>
-              
+
               <div className="flex justify-between items-center text-lg">
                 <span className="text-gray-300">Potential Win:</span>
                 <span className="font-black text-green-400 text-2xl">+{selectedTier.winAmount} MNT</span>
               </div>
-              
+
               <div className="border-t-2 border-gray-700 pt-4 flex justify-between items-center">
                 <span className="text-gray-300 font-semibold">Balance After Entry:</span>
                 <span className="font-black text-white text-xl">
@@ -370,14 +379,14 @@ export default function TierSelectionModal({ isOpen, onClose, onDuelCreated }) {
             )}
 
             <div className="flex gap-4">
-              <button 
+              <button
                 onClick={handleBack}
                 disabled={isProcessing}
                 className="flex-1 py-4 bg-gray-700 hover:bg-gray-600 text-white font-black rounded-xl text-lg transition-all disabled:opacity-50"
               >
                 ← BACK
               </button>
-              <button 
+              <button
                 onClick={handleConfirm}
                 disabled={isProcessing}
                 className="flex-1 py-4 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-black rounded-xl text-lg shadow-lg transform hover:scale-105 transition-all disabled:opacity-50 disabled:cursor-not-allowed"

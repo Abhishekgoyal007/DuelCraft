@@ -15,6 +15,51 @@ const router = express.Router();
 // In-memory storage for active duels (in production, use Redis or database)
 const activeDuelsMap = new Map();
 const battleResults = new Map();
+const pendingDuelsMap = new Map(); // For pre-registering duels before blockchain confirms
+
+/**
+ * POST /api/cash-duel/register
+ * Pre-register a duel intent for faster matchmaking (before blockchain confirms)
+ */
+router.post('/register', async (req, res) => {
+  try {
+    const { tier, address } = req.body;
+
+    if (tier === undefined || !address) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields: tier, address'
+      });
+    }
+
+    // Generate a temporary pending ID
+    const pendingId = `pending_${address}_${tier}_${Date.now()}`;
+
+    // Store pending duel
+    pendingDuelsMap.set(pendingId, {
+      pendingId,
+      tier,
+      player1: address.toLowerCase(),
+      status: 'PENDING_BLOCKCHAIN',
+      createdAt: Date.now()
+    });
+
+    console.log(`[CashDuel] Pre-registered duel: tier=${tier}, player=${address}`);
+
+    res.json({
+      success: true,
+      pendingId,
+      message: 'Duel pre-registered, waiting for blockchain confirmation'
+    });
+
+  } catch (error: any) {
+    console.error('Error registering duel:', error);
+    res.status(500).json({
+      success: false,
+      error: error?.message || 'Failed to register duel'
+    });
+  }
+});
 
 /**
  * POST /api/cash-duel/create
@@ -23,24 +68,24 @@ const battleResults = new Map();
 router.post('/create', async (req, res) => {
   try {
     const { tier, transactionHash, address } = req.body;
-    
+
     if (tier === undefined || !transactionHash || !address) {
       return res.status(400).json({
         success: false,
         error: 'Missing required fields: tier, transactionHash, address'
       });
     }
-    
+
     // Verify the blockchain transaction
     const verification = await verifyDuelCreation(transactionHash, tier, address);
-    
+
     if (!verification.verified) {
       return res.status(400).json({
         success: false,
         error: 'Transaction verification failed'
       });
     }
-    
+
     // Store duel info
     activeDuelsMap.set(verification.duelId, {
       duelId: verification.duelId,
@@ -50,14 +95,14 @@ router.post('/create', async (req, res) => {
       status: 'WAITING',
       createdAt: Date.now()
     });
-    
+
     res.json({
       success: true,
       duelId: verification.duelId,
       waitingForOpponent: true,
       tier: verification.tier
     });
-    
+
   } catch (error) {
     console.error('Error creating duel:', error);
     res.status(500).json({
@@ -74,24 +119,24 @@ router.post('/create', async (req, res) => {
 router.post('/join', async (req, res) => {
   try {
     const { duelId, transactionHash, address } = req.body;
-    
+
     if (!duelId || !transactionHash || !address) {
       return res.status(400).json({
         success: false,
         error: 'Missing required fields: duelId, transactionHash, address'
       });
     }
-    
+
     // Verify the blockchain transaction
     const verification = await verifyDuelJoin(transactionHash, duelId, address);
-    
+
     if (!verification.verified) {
       return res.status(400).json({
         success: false,
         error: 'Transaction verification failed'
       });
     }
-    
+
     // Update duel info
     const duelInfo = activeDuelsMap.get(duelId);
     if (duelInfo) {
@@ -99,7 +144,7 @@ router.post('/join', async (req, res) => {
       duelInfo.status = 'ACTIVE';
       activeDuelsMap.set(duelId, duelInfo);
     }
-    
+
     res.json({
       success: true,
       battleReady: true,
@@ -107,7 +152,7 @@ router.post('/join', async (req, res) => {
       player1Address: verification.player1,
       player2Address: verification.player2
     });
-    
+
   } catch (error) {
     console.error('Error joining duel:', error);
     res.status(500).json({
@@ -124,14 +169,14 @@ router.post('/join', async (req, res) => {
 router.post('/complete', async (req, res) => {
   try {
     const { duelId, winnerAddress, battleData } = req.body;
-    
+
     if (!duelId || !winnerAddress) {
       return res.status(400).json({
         success: false,
         error: 'Missing required fields: duelId, winnerAddress'
       });
     }
-    
+
     // Verify duel exists and is active
     const duelInfo = activeDuelsMap.get(duelId);
     if (!duelInfo) {
@@ -140,14 +185,14 @@ router.post('/complete', async (req, res) => {
         error: 'Duel not found'
       });
     }
-    
+
     if (duelInfo.status !== 'ACTIVE') {
       return res.status(400).json({
         success: false,
         error: 'Duel is not active'
       });
     }
-    
+
     // Anti-cheat validation (basic checks)
     if (battleData) {
       // TODO: Add more sophisticated validation
@@ -156,22 +201,22 @@ router.post('/complete', async (req, res) => {
       // - Compare with expected ranges
       console.log('Battle data received:', battleData);
     }
-    
+
     // Call smart contract to complete duel
     const result = await completeDuel(duelId, winnerAddress);
-    
+
     // Update duel status
     duelInfo.status = 'COMPLETED';
     duelInfo.winner = winnerAddress;
     duelInfo.completedAt = Date.now();
     activeDuelsMap.set(duelId, duelInfo);
-    
+
     // Store result for history
     battleResults.set(duelId, {
       ...result,
       battleData
     });
-    
+
     res.json({
       success: true,
       txHash: result.txHash,
@@ -180,7 +225,7 @@ router.post('/complete', async (req, res) => {
       winnerPayout: result.payout,
       blockNumber: result.blockNumber
     });
-    
+
   } catch (error) {
     console.error('Error completing duel:', error);
     res.status(500).json({
@@ -196,18 +241,64 @@ router.post('/complete', async (req, res) => {
  */
 router.get('/active', async (req, res) => {
   try {
+    // First, get duels from in-memory cache (faster, includes pending)
+    const cachedDuels: any[] = [];
+
+    // Add confirmed waiting duels from activeDuelsMap
+    activeDuelsMap.forEach((duel: any) => {
+      if (duel.status === 'WAITING') {
+        cachedDuels.push({
+          duelId: duel.duelId,
+          player1: duel.player1,
+          tier: duel.tier,
+          tierName: ['BRONZE', 'SILVER', 'GOLD'][duel.tier],
+          status: 'WAITING',
+          createdAt: duel.createdAt
+        });
+      }
+    });
+
+    // Also add pending duels that are waiting for blockchain confirmation
+    pendingDuelsMap.forEach((pendingDuel: any) => {
+      // Only include if less than 60 seconds old (auto-cleanup old pending duels)
+      const age = Date.now() - pendingDuel.createdAt;
+      if (age < 60000) {
+        cachedDuels.push({
+          duelId: pendingDuel.pendingId,
+          player1: pendingDuel.player1,
+          tier: pendingDuel.tier,
+          tierName: ['BRONZE', 'SILVER', 'GOLD'][pendingDuel.tier],
+          status: 'PENDING',
+          createdAt: pendingDuel.createdAt
+        });
+      } else {
+        // Clean up old pending duels
+        pendingDuelsMap.delete(pendingDuel.pendingId);
+      }
+    });
+
+    // If we have cached duels, return those for faster matching
+    if (cachedDuels.length > 0) {
+      console.log('[CashDuel] Returning cached active duels:', cachedDuels.length);
+      return res.json({
+        success: true,
+        activeDuels: cachedDuels
+      });
+    }
+
+    // Fall back to blockchain if cache is empty
     const activeDuels = await getActiveDuels();
-    
+
     res.json({
       success: true,
       activeDuels
     });
-    
-  } catch (error) {
+
+  } catch (error: any) {
     console.error('Error getting active duels:', error);
     res.status(500).json({
       success: false,
-      error: error.message || 'Failed to get active duels'
+      error: error?.message || 'Failed to get active duels'
     });
   }
 });
@@ -219,21 +310,21 @@ router.get('/active', async (req, res) => {
 router.get('/stats/:address', async (req, res) => {
   try {
     const { address } = req.params;
-    
+
     if (!address || !/^0x[a-fA-F0-9]{40}$/.test(address)) {
       return res.status(400).json({
         success: false,
         error: 'Invalid address format'
       });
     }
-    
+
     const stats = await getPlayerStats(address);
-    
+
     res.json({
       success: true,
       stats
     });
-    
+
   } catch (error) {
     console.error('Error getting stats:', error);
     res.status(500).json({
@@ -251,21 +342,21 @@ router.get('/history/:address', async (req, res) => {
   try {
     const { address } = req.params;
     const limit = parseInt(req.query.limit as string) || 20;
-    
+
     if (!address || !/^0x[a-fA-F0-9]{40}$/.test(address)) {
       return res.status(400).json({
         success: false,
         error: 'Invalid address format'
       });
     }
-    
+
     const history = await getPlayerHistory(address, limit);
-    
+
     res.json({
       success: true,
       history
     });
-    
+
   } catch (error) {
     console.error('Error getting history:', error);
     res.status(500).json({
@@ -282,14 +373,14 @@ router.get('/history/:address', async (req, res) => {
 router.get('/:duelId', async (req, res) => {
   try {
     const { duelId } = req.params;
-    
+
     const details = await getDuelDetails(duelId);
-    
+
     res.json({
       success: true,
       duel: details
     });
-    
+
   } catch (error) {
     console.error('Error getting duel details:', error);
     res.status(500).json({
@@ -306,7 +397,7 @@ router.get('/:duelId', async (req, res) => {
 router.get('/poll/:duelId', async (req, res) => {
   try {
     const { duelId } = req.params;
-    
+
     // First check in-memory map for faster response
     const cachedDuel = activeDuelsMap.get(duelId);
     if (cachedDuel) {
@@ -318,17 +409,17 @@ router.get('/poll/:duelId', async (req, res) => {
         battleReady: cachedDuel.status === 'ACTIVE'
       });
     }
-    
+
     // Fallback to blockchain if not in cache
     const details = await getDuelDetails(duelId);
-    
+
     res.json({
       success: true,
       status: details.status,
       player2: details.player2,
       battleReady: details.status === 'ACTIVE'
     });
-    
+
   } catch (error) {
     console.error('Error polling duel:', error);
     res.status(500).json({

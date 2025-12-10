@@ -8,6 +8,7 @@ import { CHARACTER_LAYERS, LAYER_ORDER, DEFAULT_AVATAR } from "../config/charact
 import { getCharacterImage, getCharacterName } from "../config/characters";
 import { getContractAddresses } from "../config/contracts";
 import DuelCraftCharacterABI from "../contracts/abis/DuelCraftCharacter.json";
+import CashDuelABI from "../contracts/abis/CashDuel.json";
 import TierSelectionModal from "../components/CashDuel/TierSelectionModal";
 import WaitingScreen from "../components/CashDuel/WaitingScreen";
 import { FloatingNav } from "../components/FloatingNav";
@@ -153,86 +154,80 @@ function ActionCard({ to, icon, title, subtitle, gradient, borderColor, delay, i
 }
 
 // Fighter preview component
-function FighterPreview({ selectedCharacter, hasNFT, nftTokenId, checkingNFT }) {
+function FighterPreview({ selectedCharacter, hasNFT, nftTokenId, checkingNFT, blockchainStats, loadingStats }) {
   return (
     <div className="w-full lg:w-80 flex flex-col gap-4">
       {/* Fighter Card */}
-      <div className="relative bg-gradient-to-br from-slate-800/80 to-slate-900/80 backdrop-blur-xl rounded-2xl p-4 border-2 border-white/10 shadow-2xl overflow-hidden">
-        {/* Top accent bar */}
-        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-cyan-500 via-purple-500 to-pink-500" />
-
-        <h3 className="text-lg font-black text-white mb-3 font-display flex items-center gap-2">
-          <img src="/assets/logos/swordicon.png" alt="" className="w-6 h-6" /> YOUR FIGHTER
+      <div className="bg-slate-800/90 rounded-2xl p-4 border border-slate-600/50 shadow-xl">
+        {/* Header */}
+        <h3 className="text-sm font-bold text-slate-400 mb-3 flex items-center gap-2 uppercase tracking-wide">
+          ⚔️ Your Fighter
         </h3>
 
         {selectedCharacter ? (
           <div
-            className="h-64 w-full rounded-xl flex items-center justify-center shadow-lg relative overflow-hidden border-2 border-green-500/50"
-            style={{ background: "linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)" }}
+            className="w-full aspect-square rounded-xl flex items-center justify-center shadow-lg relative overflow-hidden bg-gradient-to-br from-slate-700 to-slate-800 border border-slate-600/50"
           >
-            {/* Glow effect */}
-            <div className="absolute inset-0 bg-gradient-to-br from-green-500/10 via-transparent to-cyan-500/10" />
-
-            <div className="text-center relative z-10">
-              {getCharacterImage(selectedCharacter) && (
-                <img
-                  src={getCharacterImage(selectedCharacter)}
-                  alt={getCharacterName(selectedCharacter)}
-                  className="w-36 h-36 mx-auto mb-2 object-contain drop-shadow-2xl"
-                  style={{
-                    imageRendering: 'pixelated',
-                    filter: 'drop-shadow(0 0 20px rgba(74, 222, 128, 0.3))'
-                  }}
-                />
-              )}
-              <p className="text-white font-black text-lg font-display tracking-wide">
-                {getCharacterName(selectedCharacter).toUpperCase()}
-              </p>
-            </div>
+            {/* Character Image - Big and scaled */}
+            <img
+              src={getCharacterImage(selectedCharacter)}
+              alt={getCharacterName(selectedCharacter)}
+              className="w-full h-full object-contain"
+              style={{
+                imageRendering: 'pixelated',
+                transform: 'scale(1.8)',
+                filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.5))'
+              }}
+            />
           </div>
         ) : (
           <div
-            className="h-64 w-full rounded-xl flex items-center justify-center shadow-lg relative overflow-hidden border-2 border-dashed border-white/20"
-            style={{ background: "linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)" }}
+            className="w-full aspect-square rounded-xl flex items-center justify-center shadow-lg relative overflow-hidden bg-slate-700/50 border border-dashed border-slate-500/50"
           >
             <div className="text-center">
-              <div className="w-20 h-20 mx-auto mb-3 rounded-full bg-white/10 flex items-center justify-center border-2 border-dashed border-white/30 animate-pulse">
-                <img src="/assets/logos/warrior.png" alt="" className="w-10 h-10 opacity-50" />
-              </div>
-              <p className="text-white/70 font-bold text-sm">No fighter selected</p>
-              <p className="text-white/50 text-xs mt-1">Create your champion!</p>
+              <div className="text-5xl mb-2 opacity-30">👤</div>
+              <p className="text-slate-400 text-sm">No fighter selected</p>
             </div>
+          </div>
+        )}
+
+        {/* Character Name - Clean display below image */}
+        {selectedCharacter && (
+          <div className="mt-3 text-center">
+            <p className="text-white font-bold text-base">
+              {getCharacterName(selectedCharacter)}
+            </p>
           </div>
         )}
       </div>
 
       {/* NFT Status Card */}
-      <div className="relative bg-gradient-to-br from-purple-900/50 to-pink-900/50 backdrop-blur-xl rounded-2xl p-4 border-2 border-purple-500/30 shadow-2xl overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(168,85,247,0.1),transparent)]" />
-
+      <div className="bg-slate-800/90 rounded-2xl p-4 border border-slate-600/50 shadow-xl">
         {checkingNFT ? (
           <div className="text-center py-4">
-            <div className="animate-spin text-3xl mb-2">🔮</div>
-            <p className="text-purple-300 font-bold text-sm">Scanning Blockchain...</p>
+            <div className="animate-spin text-2xl mb-2">⏳</div>
+            <p className="text-slate-400 text-sm">Checking blockchain...</p>
           </div>
         ) : hasNFT ? (
-          <div className="relative z-10">
+          <div>
             <div className="flex items-center gap-3 mb-3">
-              <img src="/assets/logos/gem.png" alt="" className="w-8 h-8" />
+              <div className="w-10 h-10 rounded-lg bg-green-500/20 flex items-center justify-center">
+                <span className="text-green-400 text-xl">✓</span>
+              </div>
               <div>
-                <h3 className="font-black text-white font-display">NFT SECURED</h3>
-                <p className="text-purple-300 text-xs">On-Chain Asset</p>
+                <h3 className="font-bold text-white text-sm">NFT Secured</h3>
+                <p className="text-slate-400 text-xs">On-Chain Asset</p>
               </div>
             </div>
 
-            <div className="bg-white/10 backdrop-blur rounded-lg p-3 mb-3">
+            <div className="bg-slate-700/50 rounded-lg p-3 mb-3 space-y-2">
               <div className="flex justify-between items-center text-sm">
-                <span className="text-purple-300">Token ID:</span>
-                <span className="text-white font-black font-display">#{nftTokenId}</span>
+                <span className="text-slate-400">Token ID:</span>
+                <span className="text-white font-bold">#{nftTokenId}</span>
               </div>
-              <div className="flex justify-between items-center text-sm mt-1">
-                <span className="text-purple-300">Network:</span>
-                <span className="text-white font-bold">Mantle Sepolia</span>
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-slate-400">Network:</span>
+                <span className="text-white">Mantle Sepolia</span>
               </div>
             </div>
 
@@ -242,24 +237,52 @@ function FighterPreview({ selectedCharacter, hasNFT, nftTokenId, checkingNFT }) 
                 const explorerUrl = `https://explorer.sepolia.mantle.xyz/token/${contractAddresses.DuelCraftCharacter}?a=${nftTokenId}`;
                 window.open(explorerUrl, '_blank');
               }}
-              className="w-full py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-black rounded-xl hover:from-purple-500 hover:to-pink-500 transition-all shadow-lg text-sm border border-purple-400/50 hover:scale-105"
+              className="w-full py-2.5 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-lg transition-colors text-sm"
             >
               🌐 View on Explorer
             </button>
           </div>
         ) : (
-          <div className="relative z-10 text-center">
-            <img src="/assets/logos/gem.png" alt="" className="w-10 h-10 mx-auto mb-2 opacity-50" />
-            <h3 className="font-black text-white/70 font-display">NO NFT FOUND</h3>
-            <p className="text-white/50 text-xs mt-1 mb-3">Mint your fighter on-chain!</p>
+          <div className="text-center py-2">
+            <div className="w-12 h-12 mx-auto mb-2 rounded-lg bg-slate-700/50 flex items-center justify-center">
+              <span className="text-2xl opacity-50">💎</span>
+            </div>
+            <h3 className="font-bold text-slate-400 text-sm">No NFT Found</h3>
+            <p className="text-slate-500 text-xs mt-1 mb-3">Mint your fighter on-chain!</p>
 
             <Link to="/creator">
-              <button className="w-full py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-black rounded-xl hover:from-indigo-500 hover:to-purple-500 transition-all shadow-lg text-sm hover:scale-105">
-                ⚡ MINT NFT
+              <button className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg transition-colors text-sm">
+                ⚡ Mint NFT
               </button>
             </Link>
           </div>
         )}
+      </div>
+
+      {/* Compact On-Chain Stats */}
+      <div className="bg-slate-800/90 rounded-2xl p-3 border border-slate-600/50 shadow-xl">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex-1 text-center">
+            <div className="text-slate-400 text-[10px] uppercase">NFTs</div>
+            <div className="text-purple-400 font-bold text-lg">
+              {loadingStats ? '...' : blockchainStats?.totalNFTs || 0}
+            </div>
+          </div>
+          <div className="w-px h-8 bg-slate-600"></div>
+          <div className="flex-1 text-center">
+            <div className="text-slate-400 text-[10px] uppercase">Duels</div>
+            <div className="text-blue-400 font-bold text-lg">
+              {loadingStats ? '...' : blockchainStats?.totalDuels || 0}
+            </div>
+          </div>
+          <div className="w-px h-8 bg-slate-600"></div>
+          <div className="flex-1 text-center">
+            <div className="text-slate-400 text-[10px] uppercase">Pool</div>
+            <div className="text-yellow-400 font-bold text-sm">
+              {loadingStats ? '...' : `${parseFloat(blockchainStats?.prizePool || 0).toFixed(1)}`}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -288,6 +311,15 @@ export default function Hub() {
   const [showCashDuelModal, setShowCashDuelModal] = useState(false);
   const [showWaitingScreen, setShowWaitingScreen] = useState(false);
   const [currentDuel, setCurrentDuel] = useState(null);
+
+  // Blockchain stats state
+  const [blockchainStats, setBlockchainStats] = useState({
+    totalNFTs: 0,
+    totalDuels: 0,
+    prizePool: '0'
+  });
+  const [matchHistory, setMatchHistory] = useState([]);
+  const [loadingStats, setLoadingStats] = useState(true);
 
   useEffect(() => {
     setIsLoaded(true);
@@ -335,6 +367,59 @@ export default function Hub() {
       setWalletStatus("connected");
     }
   }, []);
+
+  // Fetch blockchain stats and match history
+  useEffect(() => {
+    const fetchBlockchainStats = async () => {
+      setLoadingStats(true);
+      try {
+        const provider = new ethers.JsonRpcProvider('https://rpc.sepolia.mantle.xyz');
+        const contractAddresses = getContractAddresses(5003);
+
+        // Get total NFTs minted
+        const characterContract = new ethers.Contract(
+          contractAddresses.DuelCraftCharacter,
+          DuelCraftCharacterABI,
+          provider
+        );
+        const totalNFTs = await characterContract.totalSupply();
+
+        // Get Cash Duel stats
+        const cashDuelContract = new ethers.Contract(
+          contractAddresses.CashDuel,
+          CashDuelABI,
+          provider
+        );
+        const totalDuels = await cashDuelContract.totalDuels();
+        const contractBalance = await provider.getBalance(contractAddresses.CashDuel);
+
+        setBlockchainStats({
+          totalNFTs: Number(totalNFTs),
+          totalDuels: Number(totalDuels),
+          prizePool: ethers.formatEther(contractBalance)
+        });
+      } catch (err) {
+        console.warn("Error fetching blockchain stats:", err);
+      }
+
+      // Fetch match history from backend
+      if (user?.address) {
+        try {
+          const res = await fetch(`http://localhost:4000/matches?address=${user.address}&limit=5`);
+          const data = await res.json();
+          if (data?.matches) {
+            setMatchHistory(data.matches);
+          }
+        } catch (err) {
+          console.warn("Error fetching match history:", err);
+        }
+      }
+
+      setLoadingStats(false);
+    };
+
+    fetchBlockchainStats();
+  }, [user]);
 
   // Wallet connect function
   async function connectWallet() {
@@ -676,6 +761,8 @@ export default function Hub() {
             hasNFT={hasNFT}
             nftTokenId={nftTokenId}
             checkingNFT={checkingNFT}
+            blockchainStats={blockchainStats}
+            loadingStats={loadingStats}
           />
         </div>
       </main>
