@@ -401,3 +401,7 @@ For issues and questions:
 ---
 
 **Ready to battle? Join DuelCraft and become a blockchain champion!** ⚔️🎮
+
+---
+
+*Last updated: January 13, 2026*
