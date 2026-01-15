@@ -1,6 +1,6 @@
 # DuelCraft 🎮⚔️
 
-A blockchain-powered 1v1 fighting game built with React, Node.js, and smart contracts on **Mantle Network**. Features dynamic character NFTs, dual-token economy, marketplace, tournaments, and season passes.
+A blockchain-powered 1v1 fighting game built with React, Node.js, and smart contracts on **Mantle Network**. Features dynamic character NFTs, dual-token economy, real-money cash duels, marketplace, tournaments, and season passes.
 
 ![Mantle Network](https://img.shields.io/badge/Mantle-Testnet-blue)
 ![Solidity](https://img.shields.io/badge/Solidity-0.8.20-orange)
@@ -20,7 +20,15 @@ A blockchain-powered 1v1 fighting game built with React, Node.js, and smart cont
 ### 💰 Dual Token Economy
 - **Arena Coins** (Off-chain) - Earned from matches, used in cosmetics shop
 - **ARENA Tokens** (On-chain ERC-20) - Used for NFT marketplace, tournaments, season passes
-- Real-time balance display for both currencies
+- **MNT Tokens** (Native) - Used for cash duels with real-money stakes
+- Real-time balance display for all currencies
+
+### 💸 Cash Duel System
+- **Three Tiers** - Bronze (2 MNT), Silver (10 MNT), Gold (20 MNT)
+- **Winner Takes 90%** - 10% platform fee on all cash duels
+- **Player Protection** - Daily limits (10 duels/day), cooldowns (5 min), emergency withdrawals
+- **Anti-Cheat** - Server-authorized results, banned player tracking
+- **Real-time Stats** - Track earnings, win rates, total duels played
 
 ### 🏪 Marketplace
 - Buy and sell cosmetic NFTs with ARENA tokens
@@ -50,10 +58,11 @@ A blockchain-powered 1v1 fighting game built with React, Node.js, and smart cont
 - Owned items tracking
 
 ### ⚔️ Real-time PvP Combat
-- WebSocket-based multiplayer
-- Phaser.js game engine
-- Character animations: Idle, Walk, Jump, Punch
-- Match result recording on blockchain
+- WebSocket-based multiplayer matchmaking
+- Phaser.js game engine with smooth animations
+- Character animations: Idle, Walk, Jump, Punch, Special Attacks
+- Match results automatically recorded on blockchain
+- Dual game modes: Casual Arena and Cash Duels
 
 ---
 
@@ -63,15 +72,17 @@ A blockchain-powered 1v1 fighting game built with React, Node.js, and smart cont
 ┌─────────────────┐         ┌─────────────────┐         ┌─────────────────┐
 │                 │         │                 │         │                 │
 │   Frontend      │◄───────►│   Backend       │◄───────►│  Smart          │
-│   (React)       │         │   (Node.js)     │         │  Contracts      │
-│                 │         │                 │         │  (Mantle)       │
+│   (React)       │  HTTP   │   (Node.js)     │  RPC    │  Contracts      │
+│   + Phaser.js   │  WS     │   + WebSocket   │         │  (Mantle)       │
+│                 │         │                 │         │                 │
 └─────────────────┘         └─────────────────┘         └─────────────────┘
    │                           │                           │
-   ├─ Character Creator        ├─ Match Engine            ├─ ArenaToken
-   ├─ Marketplace              ├─ WebSocket Server        ├─ DuelCraftCharacter
-   ├─ Tournament               ├─ Blockchain Service      ├─ SeasonPass
-   ├─ Season Pass              ├─ MongoDB Atlas           ├─ Marketplace
-   ├─ Shop                     └─ RESTful API             └─ Tournament
+   ├─ Character Creator        ├─ Match Engine            ├─ ArenaToken (ERC-20)
+   ├─ Marketplace              ├─ Cash Duel Service       ├─ CashDuel
+   ├─ Tournament               ├─ WebSocket Server        ├─ DuelCraftCharacter (NFT)
+   ├─ Season Pass              ├─ Blockchain Service      ├─ SeasonPass
+   ├─ Shop                     ├─ MongoDB Atlas           ├─ Marketplace
+   ├─ Cash Duel                └─ RESTful API             └─ Tournament
    └─ Hub
 ```
 
@@ -109,13 +120,24 @@ npm install
 
 **Backend `.env`:**
 ```env
+# MongoDB
 MONGODB_URI=your_mongodb_connection_string
+
+# Server
 PORT=4000
-JWT_SECRET=your_jwt_secret
+JWT_SECRET=your_jwt_secret_key_here
+
+# Blockchain
 BLOCKCHAIN_PRIVATE_KEY=0x_your_server_wallet_private_key
+MANTLE_RPC_URL=https://rpc.sepolia.mantle.xyz
+
+# Cash Duel Settings
+CASH_DUEL_CONTRACT=0x_deployed_cashduel_contract_address
 ```
 
-**Frontend** - Update `src/config/contracts.js` if needed (already configured for Mantle Sepolia).
+**Frontend** - Already configured in `src/config/contracts.js` for Mantle Sepolia.
+
+**Important:** Get Mantle Sepolia testnet MNT from [faucet](https://faucet.sepolia.mantle.xyz) for server wallet and testing.
 
 ### 4. Start Development Servers
 
@@ -141,6 +163,7 @@ Backend runs on: http://localhost:4000
 | Contract | Address | Purpose |
 |----------|---------|---------|
 | ArenaToken | `0x57AC8904F597E727BD53e8E9f7A00280876F13A1` | ERC-20 game token |
+| CashDuel | `0x00FB7A8D8b3ea3B9BaF67dbD29F6f62Cade88e8c` | Real-money duels with MNT |
 | DuelCraftCharacter | `0x5f8B9575ABADF3A356337c2118045412A966BED9` | Dynamic character NFTs |
 | SeasonPass | `0x7385035e4436Cc987298497555094e2d4B9b89b0` | Season pass system |
 | Marketplace | `0x9edAE91e4d9Fe8B89238223CcEd674D321C0d8f7` | NFT trading platform |
@@ -150,6 +173,7 @@ Backend runs on: http://localhost:4000
 - Chain ID: 5003
 - RPC: https://rpc.sepolia.mantle.xyz
 - Explorer: https://explorer.sepolia.mantle.xyz
+- Native Token: MNT (Get from [faucet](https://faucet.sepolia.mantle.xyz))
 
 ---
 
@@ -170,11 +194,25 @@ Backend runs on: http://localhost:4000
 - Character type becomes globally unavailable
 
 ### 3. Play Matches
-- Click "Play Now" from Hub
-- Wait for matchmaking
-- Battle opponent in real-time
+- **Casual Arena** - Click "Play Now" from Hub for free matches
+- Wait for matchmaking system
+- Battle opponent in real-time with Phaser game engine
 - Earn Arena Coins and XP
 - Match results recorded on blockchain
+
+### 3b. Cash Duels (Real Money)
+- Click "Cash Duels" from Hub
+- Choose tier: Bronze (2 MNT), Silver (10 MNT), Gold (20 MNT)
+- Pay entry fee from your MNT balance
+- System matches you with another player
+- Winner takes 90% of pot (1.8x, 9x, or 18x return)
+- Platform keeps 10% fee
+- Track stats: earnings, win rate, duels played
+
+**Cash Duel Limits:**
+- Max 10 duels per day
+- 5 minute cooldown between duels
+- Server-verified results prevent cheating
 
 ### 4. Use Marketplace
 - Browse NFT listings
@@ -198,26 +236,55 @@ Backend runs on: http://localhost:4000
 
 ---
 
-## 🔧 Backend Blockchain Service
+## 🔧 Backend Services
 
-The backend automatically:
-- Records match results on blockchain
-- Updates character stats (wins/losses/XP)
+The backend provides comprehensive blockchain integration and game services:
+
+### Blockchain Service
+- Records match results on-chain automatically
+- Updates character stats (wins/losses/XP/level)
 - Distributes weekly ARENA token rewards
-- Checks season pass benefits
+- Checks season pass benefits and multipliers
 - Manages tournament operations
+- Verifies and completes cash duels
+
+### Cash Duel Service
+- Pre-registers duel intents for fast matchmaking
+- Verifies on-chain duel creation and player joins
+- Completes duels with server-authorized results
+- Tracks player stats and history
+- Enforces daily limits and cooldowns
+- Manages emergency withdrawals
+
+### Match Engine
+- WebSocket-based real-time multiplayer
+- Queue management for casual and cash duels
+- Player pairing algorithms
+- Battle result handling
+- Integration with blockchain recording
 
 **Setup Server Wallet:**
-See `backend/SERVER_AUTHORIZATION.md` for complete guide.
+See [backend/SERVER_AUTHORIZATION.md](backend/SERVER_AUTHORIZATION.md) for complete authorization guide.
 
 **API Endpoints:**
 ```
+# Blockchain Service
 GET  /api/blockchain/info                    # Server wallet status
 POST /api/blockchain/record-match            # Record match result
 POST /api/blockchain/distribute-rewards      # Weekly rewards
 GET  /api/blockchain/character/:tokenId      # Get character stats
 GET  /api/blockchain/balance/:address        # Check ARENA balance
 GET  /api/blockchain/season-pass/:address    # Season pass status
+
+# Cash Duel Service
+POST /api/cash-duel/register                 # Pre-register duel intent
+POST /api/cash-duel/verify-creation          # Verify blockchain duel created
+POST /api/cash-duel/verify-join              # Verify player joined duel
+POST /api/cash-duel/complete                 # Complete duel with results
+GET  /api/cash-duel/active                   # Get all active duels
+GET  /api/cash-duel/stats/:address           # Get player stats
+GET  /api/cash-duel/history/:address         # Get player duel history
+GET  /api/cash-duel/details/:duelId          # Get specific duel details
 ```
 
 ---
@@ -228,38 +295,49 @@ GET  /api/blockchain/season-pass/:address    # Season pass status
 duelcraft/
 ├── frontend/                 # React frontend
 │   ├── src/
-│   │   ├── pages/           # UI pages (Hub, Shop, Marketplace, etc.)
+│   │   ├── pages/           # UI pages (Hub, Shop, Marketplace, CashDuel, etc.)
 │   │   ├── components/      # Reusable components
 │   │   ├── context/         # React context (Auth, Web3)
 │   │   ├── game/            # Phaser game engine
+│   │   ├── hooks/           # Custom React hooks
+│   │   ├── utils/           # Utility functions
 │   │   └── config/          # Contract addresses, character data
 │   └── public/
-│       └── assets/          # Character sprites, backgrounds
+│       └── assets/          # Character sprites, backgrounds, sounds
 │
-├── backend/                  # Node.js backend
+├── backend/                  # Node.js + TypeScript backend
 │   ├── src/
-│   │   ├── services/        # Blockchain service
-│   │   ├── db/              # MongoDB models
+│   │   ├── services/        # Blockchain & Cash Duel services
+│   │   ├── routes/          # API route handlers
+│   │   ├── db/              # MongoDB models & connection
 │   │   ├── contracts/       # Contract ABIs and addresses
-│   │   ├── auth.ts          # Authentication routes
+│   │   ├── auth.ts          # JWT authentication routes
 │   │   ├── blockchain.ts    # Blockchain API routes
-│   │   ├── matchEngine.ts   # PvP matchmaking
+│   │   ├── matchEngine.ts   # PvP matchmaking & game logic
 │   │   └── index.ts         # Express app + WebSocket server
-│   └── BLOCKCHAIN_INTEGRATION.md  # Setup guide
+│   ├── BLOCKCHAIN_INTEGRATION.md   # Setup guide
+│   └── SERVER_AUTHORIZATION.md     # Server wallet auth guide
 │
-├── contracts/                # Smart contracts
+├── contracts/                # Smart contracts (Solidity)
 │   ├── contracts/
-│   │   ├── ArenaToken.sol
-│   │   ├── DuelCraftCharacter.sol
-│   │   ├── SeasonPass.sol
-│   │   ├── Marketplace.sol
-│   │   └── Tournament.sol
+│   │   ├── ArenaToken.sol           # ERC-20 game token
+│   │   ├── CashDuel.sol             # Real-money duels
+│   │   ├── DuelCraftCharacter.sol   # Dynamic NFTs
+│   │   ├── SeasonPass.sol           # Season pass system
+│   │   ├── Marketplace.sol          # NFT marketplace
+│   │   └── Tournament.sol           # Tournament management
 │   ├── scripts/
-│   │   ├── deploy.js        # Deployment script
-│   │   └── export-abis.js   # Export ABIs to frontend/backend
+│   │   ├── deploy.js                # Deploy all contracts
+│   │   ├── deploy-cashduel.js       # Deploy cash duel contract
+│   │   ├── export-abis.js           # Export ABIs to frontend/backend
+│   │   ├── authorize-server.js      # Authorize server wallet
+│   │   └── setup-arena-tokens.js    # Initialize ARENA tokens
+│   ├── deployments/                 # Deployment history
 │   └── hardhat.config.js
 │
-└── BLOCKCHAIN_COMPLETE.md    # Complete feature documentation
+└── docs/                     # Documentation
+    ├── AI_ASSET_PROMPTS.md
+    └── ASSET_SPECIFICATION.md
 ```
 
 ---
@@ -267,47 +345,68 @@ duelcraft/
 ## 🛠️ Tech Stack
 
 ### Frontend
-- **React 18** - UI framework
-- **Vite** - Build tool
-- **Tailwind CSS** - Styling
-- **Ethers.js v6** - Blockchain interaction
-- **Phaser 3** - Game engine
-- **React Router** - Navigation
+- **React 18** - UI framework with hooks
+- **Vite** - Fast build tool and dev server
+- **Tailwind CSS** - Utility-first styling
+- **Ethers.js v6** - Blockchain interaction library
+- **Phaser 3** - HTML5 game engine for real-time combat
+- **React Router** - Client-side routing
+- **React Context API** - State management
 
 ### Backend
-- **Node.js + Express** - REST API
-- **WebSocket (ws)** - Real-time multiplayer
-- **MongoDB Atlas** - Database
-- **Ethers.js v6** - Blockchain service
-- **TypeScript** - Type safety
+- **Node.js 18+** - JavaScript runtime
+- **Express** - REST API framework
+- **WebSocket (ws)** - Real-time bidirectional communication
+- **MongoDB Atlas** - Cloud database for user data
+- **Ethers.js v6** - Server-side blockchain interaction
+- **TypeScript** - Type safety and better DX
+- **JWT** - Authentication tokens
 
 ### Smart Contracts
-- **Solidity 0.8.20** - Contract language
-- **Hardhat** - Development framework
-- **OpenZeppelin** - Security libraries
-- **Mantle Network** - Deployment network
+- **Solidity 0.8.20** - Smart contract language
+- **Hardhat** - Development and testing framework
+- **OpenZeppelin** - Audited security libraries
+- **Mantle Network** - Layer-2 blockchain deployment
+- **ERC-20** - Fungible token standard (ARENA)
+- **ERC-721** - Non-fungible token standard (Characters)
 
 ---
 
 ## 🔐 Security
 
 ### Smart Contracts
-- ✅ OpenZeppelin audited contracts
+- ✅ OpenZeppelin audited contract libraries
 - ✅ Server authorization for protected functions
 - ✅ Owner-only administrative functions
-- ✅ Character rarity enforcement
+- ✅ Character rarity enforcement (one mint per type)
+- ✅ ReentrancyGuard on all money transfers
+- ✅ Pausable emergency stops
+- ✅ Daily limits and cooldowns for cash duels
+- ✅ Anti-cheat: server-verified battle results
 
 ### Backend
-- ✅ JWT authentication
-- ✅ Input validation
-- ✅ Private key in environment variables
-- ✅ Error handling and logging
+- ✅ JWT authentication for user sessions
+- ✅ Input validation on all API endpoints
+- ✅ Private keys stored in environment variables (never committed)
+- ✅ Error handling and comprehensive logging
+- ✅ Rate limiting on sensitive endpoints
+- ✅ CORS configured for production
 
 ### Frontend
 - ✅ MetaMask wallet connection
-- ✅ Network validation
+- ✅ Network validation (Mantle Sepolia)
 - ✅ Transaction confirmation prompts
 - ✅ Token approval flows
+- ✅ Input sanitization
+- ✅ Error boundaries for crash recovery
+
+### Cash Duel Protection
+- ✅ Maximum 10 duels per day per player
+- ✅ 5-minute cooldown between duels
+- ✅ Emergency withdrawal for stuck funds
+- ✅ Banned player tracking
+- ✅ Server-only result completion
+- ✅ Automatic refunds on cancellation
 
 ---
 
@@ -316,42 +415,59 @@ duelcraft/
 | Operation | Estimated Gas Cost |
 |-----------|-------------------|
 | Mint Character NFT | ~0.001 MNT |
-| Record Match Result | ~0.0005 MNT |
+| Create Cash Duel | Entry Fee (2/10/20 MNT) + ~0.0003 MNT gas |
+| Join Cash Duel | Entry Fee + ~0.0003 MNT gas |
+| Record Match Result | ~0.0005 MNT (server pays) |
 | Buy from Marketplace | ~0.0008 MNT |
 | Purchase Season Pass | ~0.0007 MNT |
 | Register for Tournament | ~0.0006 MNT |
+
+**Note:** Mantle Network offers significantly lower gas fees compared to Ethereum mainnet.
 
 ---
 
 ## 🗺️ Roadmap
 
 ### Phase 1: Core Features ✅
-- [x] Character NFT minting
-- [x] Match engine with WebSocket
-- [x] Character rarity system
-- [x] Shop and marketplace
-- [x] Tournament system
-- [x] Season pass
+- [x] Character NFT minting with dynamic stats
+- [x] Match engine with WebSocket real-time multiplayer
+- [x] Character rarity system (globally unique types)
+- [x] Shop and marketplace with ARENA tokens
+- [x] Tournament system with prize pools
+- [x] Season pass with multipliers
 
-### Phase 2: Backend Integration 🔄
-- [x] Blockchain service setup
-- [x] API endpoints
-- [ ] Server wallet authorization (in progress)
-- [ ] Match result recording
-- [ ] Weekly reward distribution
+### Phase 2: Backend Integration ✅
+- [x] Blockchain service setup and API
+- [x] Server wallet authorization
+- [x] Match result recording on-chain
+- [x] Cash Duel contract deployment
+- [x] Cash Duel backend service
+- [x] Real-money betting system
 
-### Phase 3: Enhancement 📋
-- [ ] Weekly reward claiming UI
-- [ ] Leaderboard blockchain integration
+### Phase 3: Current Features 🚀
+- [x] Cash Duel UI with tier selection
+- [x] Player stats and history tracking
+- [x] Daily limits and cooldown enforcement
+- [x] Emergency withdrawal system
+- [x] Anti-cheat measures
+- [ ] Weekly reward distribution UI
+- [ ] Leaderboard integration
+
+### Phase 4: Enhancement 📋
 - [ ] Tournament bracket automation
-- [ ] Advanced character customization
-- [ ] Mobile responsiveness
+- [ ] Advanced character abilities
+- [ ] Mobile responsive design
+- [ ] More cash duel tiers
+- [ ] Referral system
+- [ ] Achievement badges
 
-### Phase 4: Mainnet 🚀
-- [ ] Audit smart contracts
+### Phase 5: Mainnet Launch 🎯
+- [ ] Full security audit of all contracts
 - [ ] Deploy to Mantle Mainnet
-- [ ] Production backend setup
-- [ ] Marketing and launch
+- [ ] Production infrastructure setup
+- [ ] Community testing period
+- [ ] Marketing campaign
+- [ ] Official launch
 
 ---
 
@@ -395,13 +511,21 @@ MIT License - See LICENSE file for details
 
 For issues and questions:
 - Open an issue on GitHub
-- Check `BLOCKCHAIN_COMPLETE.md` for full feature documentation
-- See `backend/BLOCKCHAIN_INTEGRATION.md` for setup guides
+- Check [backend/BLOCKCHAIN_INTEGRATION.md](backend/BLOCKCHAIN_INTEGRATION.md) for blockchain setup
+- See [backend/SERVER_AUTHORIZATION.md](backend/SERVER_AUTHORIZATION.md) for server wallet auth
+- Review contract documentation in [contracts/README.md](contracts/README.md)
+
+**Common Issues:**
+- **"Wrong network"** - Switch MetaMask to Mantle Sepolia (Chain ID: 5003)
+- **"Insufficient funds"** - Get MNT from [faucet](https://faucet.sepolia.mantle.xyz)
+- **"Transaction failed"** - Check gas limits and wallet balance
+- **"Character type unavailable"** - That character was already minted globally
+- **"Daily limit reached"** - Wait until next day for more cash duels
 
 ---
 
-**Ready to battle? Join DuelCraft and become a blockchain champion!** ⚔️🎮
+**Ready to battle? Join DuelCraft and become a blockchain champion!** ⚔️🎮💰
 
 ---
 
-*Last updated: January 13, 2026*
+*Last updated: January 15, 2026*
