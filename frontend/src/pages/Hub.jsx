@@ -570,85 +570,84 @@ export default function Hub() {
       <main className={`relative z-10 max-w-7xl mx-auto px-4 py-6 flex flex-col min-h-screen transition-all duration-700 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'}`}>
 
         {/* Top Stats Bar */}
-        {user && (
-          <div className="mb-6 flex gap-3 justify-center flex-wrap animate-slide-down">
-            {/* Home Button */}
-            <Link to="/">
-              <div className="relative bg-gradient-to-br from-blue-500 to-cyan-600 px-4 py-4 rounded-2xl shadow-2xl flex items-center justify-center border-4 border-blue-700 transform hover:scale-110 transition-all hover:-rotate-3 overflow-hidden cursor-pointer group">
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-500" />
-                <img src="/assets/logos/home.png" alt="Home" className="w-8 h-8 object-contain drop-shadow-lg relative z-10" />
+        {/* Top Stats Bar */}
+        <div className="mb-6 flex gap-3 justify-center flex-wrap animate-slide-down">
+          {/* Home Button */}
+          <Link to="/">
+            <div className="relative bg-gradient-to-br from-blue-500 to-cyan-600 px-4 py-4 rounded-2xl shadow-2xl flex items-center justify-center border-4 border-blue-700 transform hover:scale-110 transition-all hover:-rotate-3 overflow-hidden cursor-pointer group">
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-500" />
+              <img src="/assets/logos/home.png" alt="Home" className="w-8 h-8 object-contain drop-shadow-lg relative z-10" />
+            </div>
+          </Link>
+
+          <StatCard
+            icon="/assets/logos/coin.png"
+            value={coins}
+            label="Gold Stash"
+            gradient="bg-gradient-to-br from-yellow-500 via-amber-500 to-orange-600"
+            borderColor="border-yellow-700"
+            glowColor="rgba(255, 215, 0, 0.3)"
+          />
+
+          <StatCard
+            icon="/assets/logos/gem.png"
+            value={arenaBalance || '0.00'}
+            label="Arena Tokens"
+            gradient="bg-gradient-to-br from-purple-600 via-violet-600 to-fuchsia-700"
+            borderColor="border-purple-800"
+            glowColor="rgba(168, 85, 247, 0.3)"
+          />
+
+          <StatCard
+            icon="/assets/logos/trophy.png"
+            value={stats.wins || 0}
+            label="Victories"
+            gradient="bg-gradient-to-br from-emerald-500 via-green-500 to-teal-600"
+            borderColor="border-green-700"
+            glowColor="rgba(16, 185, 129, 0.3)"
+          />
+
+          <StatCard
+            icon="/assets/logos/swordicon.png"
+            value={stats.losses || 0}
+            label="Defeats"
+            gradient="bg-gradient-to-br from-red-600 via-rose-600 to-red-800"
+            borderColor="border-red-900"
+            glowColor="rgba(239, 68, 68, 0.3)"
+          />
+
+          {/* Wallet */}
+          {walletStatus === "connected" && walletAddress ? (
+            <button
+              onClick={logoutWallet}
+              className="relative bg-gradient-to-br from-green-500 to-emerald-600 px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-3 border-4 border-green-700 transform hover:scale-105 transition-all overflow-hidden cursor-pointer group"
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-500" />
+              <span className="text-2xl relative z-10">🔗</span>
+              <div className="relative z-10">
+                <div className="text-[9px] font-black text-green-100 tracking-wider">CONNECTED</div>
+                <div className="text-sm font-black text-white font-display">
+                  {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}
+                </div>
               </div>
-            </Link>
-
-            <StatCard
-              icon="/assets/logos/coin.png"
-              value={coins}
-              label="Gold Stash"
-              gradient="bg-gradient-to-br from-yellow-500 via-amber-500 to-orange-600"
-              borderColor="border-yellow-700"
-              glowColor="rgba(255, 215, 0, 0.3)"
-            />
-
-            <StatCard
-              icon="/assets/logos/gem.png"
-              value={arenaBalance || '0.00'}
-              label="Arena Tokens"
-              gradient="bg-gradient-to-br from-purple-600 via-violet-600 to-fuchsia-700"
-              borderColor="border-purple-800"
-              glowColor="rgba(168, 85, 247, 0.3)"
-            />
-
-            <StatCard
-              icon="/assets/logos/trophy.png"
-              value={stats.wins || 0}
-              label="Victories"
-              gradient="bg-gradient-to-br from-emerald-500 via-green-500 to-teal-600"
-              borderColor="border-green-700"
-              glowColor="rgba(16, 185, 129, 0.3)"
-            />
-
-            <StatCard
-              icon="/assets/logos/swordicon.png"
-              value={stats.losses || 0}
-              label="Defeats"
-              gradient="bg-gradient-to-br from-red-600 via-rose-600 to-red-800"
-              borderColor="border-red-900"
-              glowColor="rgba(239, 68, 68, 0.3)"
-            />
-
-            {/* Wallet */}
-            {walletStatus === "connected" && walletAddress ? (
-              <button
-                onClick={logoutWallet}
-                className="relative bg-gradient-to-br from-green-500 to-emerald-600 px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-3 border-4 border-green-700 transform hover:scale-105 transition-all overflow-hidden cursor-pointer group"
-              >
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-500" />
-                <span className="text-2xl relative z-10">🔗</span>
-                <div className="relative z-10">
-                  <div className="text-[9px] font-black text-green-100 tracking-wider">CONNECTED</div>
-                  <div className="text-sm font-black text-white font-display">
-                    {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}
-                  </div>
+            </button>
+          ) : (
+            <button
+              onClick={connectWallet}
+              disabled={walletStatus === "connecting"}
+              className="relative bg-gradient-to-br from-orange-500 to-red-600 px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-3 border-4 border-orange-700 transform hover:scale-110 transition-all overflow-hidden cursor-pointer group disabled:opacity-50"
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-500" />
+              <span className="text-2xl relative z-10 animate-pulse">🔌</span>
+              <div className="relative z-10">
+                <div className="text-sm font-black text-white font-display">
+                  {walletStatus === "connecting" ? "CONNECTING..." : "CONNECT"}
                 </div>
-              </button>
-            ) : (
-              <button
-                onClick={connectWallet}
-                disabled={walletStatus === "connecting"}
-                className="relative bg-gradient-to-br from-orange-500 to-red-600 px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-3 border-4 border-orange-700 transform hover:scale-110 transition-all overflow-hidden cursor-pointer group disabled:opacity-50"
-              >
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-500" />
-                <span className="text-2xl relative z-10 animate-pulse">🔌</span>
-                <div className="relative z-10">
-                  <div className="text-sm font-black text-white font-display">
-                    {walletStatus === "connecting" ? "CONNECTING..." : "CONNECT"}
-                  </div>
-                  <div className="text-[9px] font-black text-orange-100 tracking-wider">WALLET</div>
-                </div>
-              </button>
-            )}
-          </div>
-        )}
+                <div className="text-[9px] font-black text-orange-100 tracking-wider">WALLET</div>
+              </div>
+            </button>
+          )}
+        </div>
 
         {/* Main Content */}
         <div className="flex gap-6 flex-col lg:flex-row flex-1">
