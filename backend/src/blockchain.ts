@@ -1,5 +1,5 @@
 import { Router, Request, Response } from "express";
-import { blockchainService } from "../services/blockchain";
+import { blockchainService } from "./services/blockchain";
 
 const router = Router();
 
