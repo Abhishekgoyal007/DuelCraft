@@ -5,7 +5,7 @@
   "main": "dist/index.js",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
-    "build": "tsc -p . && (cp -r src/contracts dist/ || mkdir -p dist/contracts && cp -r src/contracts/* dist/contracts/ || true)",
+    "build": "tsc -p . && node scripts/copy-contracts.js",
     "start": "node dist/index.js"
   },
   "dependencies": {

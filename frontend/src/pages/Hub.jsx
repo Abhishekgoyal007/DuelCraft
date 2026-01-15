@@ -327,15 +327,42 @@ export default function Hub() {
   useEffect(() => {
     const doFetch = async () => {
       if (!user?.address) return;
+      
+      console.log('[Hub] Fetching profile for:', user.address);
+      
       try {
         const res = await fetch(`https://duelcraft-backend.onrender.com/profile?address=${user.address}`);
+        
+        if (!res.ok) {
+          console.error('[Hub] Profile fetch failed:', res.status, res.statusText);
+          return;
+        }
+        
         const data = await res.json();
-        if (data?.avatar) setAvatar(data.avatar);
-        if (data?.selectedCharacter) setSelectedCharacter(data.selectedCharacter);
-        if (data?.coins !== undefined) setCoins(data.coins);
-        if (data?.stats) setStats(data.stats);
+        console.log('[Hub] Profile data received:', data);
+        
+        // Set data with defaults
+        if (data?.avatar) {
+          setAvatar(data.avatar);
+        }
+        if (data?.selectedCharacter) {
+          setSelectedCharacter(data.selectedCharacter);
+        }
+        if (data?.coins !== undefined) {
+          setCoins(data.coins);
+        } else {
+          setCoins(100); // Default starting coins
+        }
+        if (data?.stats) {
+          setStats(data.stats);
+        } else {
+          setStats({ wins: 0, losses: 0, totalMatches: 0 }); // Default stats
+        }
       } catch (err) {
-        console.warn(err);
+        console.error('[Hub] Error fetching profile:', err);
+        // Set defaults on error
+        setCoins(100);
+        setStats({ wins: 0, losses: 0, totalMatches: 0 });
       }
     };
 
@@ -371,6 +398,8 @@ export default function Hub() {
   useEffect(() => {
     const fetchBlockchainStats = async () => {
       setLoadingStats(true);
+      console.log('[Hub] Fetching blockchain stats...');
+      
       try {
         const provider = new ethers.JsonRpcProvider('https://rpc.sepolia.mantle.xyz');
         const contractAddresses = getContractAddresses(5003);
@@ -387,6 +416,7 @@ export default function Hub() {
             provider
           );
           totalNFTs = Number(await characterContract.totalSupply());
+          console.log('[Hub] Total NFTs:', totalNFTs);
         } catch (err) {
           console.warn("Error fetching NFT count:", err.message);
         }
@@ -401,9 +431,11 @@ export default function Hub() {
           // Use getActiveDuels().length instead of totalDuels (which doesn't exist)
           const activeDuels = await cashDuelContract.getActiveDuels();
           totalDuels = activeDuels.length;
+          console.log('[Hub] Active duels:', totalDuels);
 
           const contractBalance = await provider.getBalance(contractAddresses.CashDuel);
           prizePool = ethers.formatEther(contractBalance);
+          console.log('[Hub] Prize pool:', prizePool, 'MNT');
         } catch (err) {
           console.warn("Error fetching Cash Duel stats:", err.message);
         }
@@ -414,19 +446,26 @@ export default function Hub() {
           prizePool
         });
       } catch (err) {
-        console.warn("Error fetching blockchain stats:", err);
+        console.error("Error fetching blockchain stats:", err);
       }
 
       // Fetch match history from backend
       if (user?.address) {
         try {
+          console.log('[Hub] Fetching match history for:', user.address);
           const res = await fetch(`https://duelcraft-backend.onrender.com/matches?address=${user.address}&limit=5`);
-          const data = await res.json();
-          if (data?.matches) {
-            setMatchHistory(data.matches);
+          
+          if (!res.ok) {
+            console.error('[Hub] Match history fetch failed:', res.status, res.statusText);
+          } else {
+            const data = await res.json();
+            console.log('[Hub] Match history received:', data);
+            if (data?.matches) {
+              setMatchHistory(data.matches);
+            }
           }
         } catch (err) {
-          console.warn("Error fetching match history:", err);
+          console.error("Error fetching match history:", err);
         }
       }
 

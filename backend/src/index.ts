@@ -48,7 +48,11 @@ app.use((req, res, next) => {
 const PORT = Number(process.env.PORT || 4000);
 
 // health route
-app.get("/health", (_req, res) => res.json({ ok: true, ts: Date.now(), db: isDBConnected() }));
+app.get("/health", (_req, res) => {
+  const dbConnected = isDBConnected();
+  console.log("[Health] Check: DB connected =", dbConnected);
+  return res.json({ ok: true, ts: Date.now(), db: dbConnected });
+});
 
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server, path: "/ws" });
@@ -63,32 +67,61 @@ let matchEngine: MatchEngine;
 app.get("/profile", async (req, res) => {
   try {
     const address = ((req.query.address as string) || "").toLowerCase();
-    if (!address) return res.status(400).json({ error: "address required" });
+    if (!address) {
+      console.log("[Profile] GET: Missing address");
+      return res.status(400).json({ error: "address required" });
+    }
+    
+    console.log("[Profile] GET: Fetching profile for", address);
     
     if (!isDBConnected()) {
-      // Fallback: return empty profile if no DB
-      return res.json({ ok: true, avatar: null, coins: 100 });
+      console.log("[Profile] GET: DB not connected, returning defaults");
+      // Fallback: return default profile if no DB
+      return res.json({ 
+        ok: true, 
+        avatar: null, 
+        coins: 100,
+        stats: { wins: 0, losses: 0, totalMatches: 0 },
+        selectedCharacter: null,
+        ownedSkins: [],
+        equipped: {},
+        ownedAssets: []
+      });
     }
     
     let player = await Player.findOne({ walletAddress: address });
     
     // Auto-create player if not exists
     if (!player) {
-      player = await Player.create({ walletAddress: address });
+      console.log("[Profile] GET: Player not found, creating new player");
+      player = await Player.create({ 
+        walletAddress: address,
+        coins: 100,
+        stats: { wins: 0, losses: 0, totalMatches: 0 }
+      });
     }
     
-    return res.json({ 
+    const response = { 
       ok: true, 
       avatar: player.avatar,
-      coins: player.coins,
-      stats: player.stats,
-      ownedSkins: player.ownedSkins,
-      equipped: player.equipped,
-      ownedAssets: player.ownedAssets,
-      selectedCharacter: player.selectedCharacter
+      coins: player.coins || 100,
+      stats: player.stats || { wins: 0, losses: 0, totalMatches: 0 },
+      ownedSkins: player.ownedSkins || [],
+      equipped: player.equipped || {},
+      ownedAssets: player.ownedAssets || [],
+      selectedCharacter: player.selectedCharacter || null
+    };
+    
+    console.log("[Profile] GET: Returning data:", {
+      address,
+      coins: response.coins,
+      stats: response.stats,
+      selectedCharacter: response.selectedCharacter
     });
+    
+    return res.json(response);
   } catch (err) {
-    console.error(err);
+    console.error("[Profile] GET: Error:", err);
     return res.status(500).json({ error: "server error" });
   }
 });
@@ -688,9 +721,15 @@ app.get("/matches", async (req, res) => {
     const address = ((req.query.address as string) || "").toLowerCase();
     const limit = Math.min(parseInt(req.query.limit as string) || 10, 50);
     
-    if (!address) return res.status(400).json({ error: "address required" });
+    if (!address) {
+      console.log("[Matches] GET: Missing address");
+      return res.status(400).json({ error: "address required" });
+    }
+    
+    console.log("[Matches] GET: Fetching match history for", address, "limit:", limit);
     
     if (!isDBConnected()) {
+      console.log("[Matches] GET: DB not connected, returning empty array");
       return res.json({ ok: true, matches: [] });
     }
     
@@ -700,9 +739,11 @@ app.get("/matches", async (req, res) => {
       .sort({ createdAt: -1 })
       .limit(limit);
     
+    console.log("[Matches] GET: Found", matches.length, "matches for", address);
+    
     return res.json({ ok: true, matches });
   } catch (err) {
-    console.error(err);
+    console.error("[Matches] GET: Error:", err);
     return res.status(500).json({ error: "server error" });
   }
 });
