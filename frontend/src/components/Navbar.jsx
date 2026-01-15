@@ -10,8 +10,6 @@ export default function Navbar() {
     return location.pathname === path;
   };
 
-  if (location.pathname === '/') return null;
-
   return (
     <header className="w-full bg-gradient-to-r from-sky-500/90 via-sky-400/90 to-emerald-500/90 backdrop-blur-sm border-b-4 border-amber-600 shadow-lg">
       <div className="max-w-6xl mx-auto px-6 py-3 flex items-center gap-6">
@@ -30,8 +28,8 @@ export default function Navbar() {
         <nav className="ml-8 flex gap-3 text-sm font-bold flex-wrap items-center">
           <Link
             className={`px-5 py-2 rounded-lg transition-all hover:scale-105 ${isActive('/')
-                ? 'bg-white text-sky-600 shadow-md'
-                : 'text-white hover:bg-white/20'
+              ? 'bg-white text-sky-600 shadow-md'
+              : 'text-white hover:bg-white/20'
               }`}
             to="/"
           >
@@ -39,8 +37,8 @@ export default function Navbar() {
           </Link>
           <Link
             className={`px-5 py-2 rounded-lg transition-all hover:scale-105 ${isActive('/hub')
-                ? 'bg-white text-sky-600 shadow-md'
-                : 'text-white hover:bg-white/20'
+              ? 'bg-white text-sky-600 shadow-md'
+              : 'text-white hover:bg-white/20'
               }`}
             to="/hub"
           >
@@ -48,8 +46,8 @@ export default function Navbar() {
           </Link>
           <Link
             className={`px-5 py-2 rounded-lg transition-all hover:scale-105 ${isActive('/creator')
-                ? 'bg-white text-sky-600 shadow-md'
-                : 'text-white hover:bg-white/20'
+              ? 'bg-white text-sky-600 shadow-md'
+              : 'text-white hover:bg-white/20'
               }`}
             to="/creator"
           >
@@ -57,8 +55,8 @@ export default function Navbar() {
           </Link>
           <Link
             className={`px-5 py-2 rounded-lg transition-all hover:scale-105 ${isActive('/shop')
-                ? 'bg-white text-sky-600 shadow-md'
-                : 'text-white hover:bg-white/20'
+              ? 'bg-white text-sky-600 shadow-md'
+              : 'text-white hover:bg-white/20'
               }`}
             to="/shop"
           >
@@ -66,8 +64,8 @@ export default function Navbar() {
           </Link>
           <Link
             className={`px-5 py-2 rounded-lg transition-all hover:scale-105 ${isActive('/leaderboard')
-                ? 'bg-white text-sky-600 shadow-md'
-                : 'text-white hover:bg-white/20'
+              ? 'bg-white text-sky-600 shadow-md'
+              : 'text-white hover:bg-white/20'
               }`}
             to="/leaderboard"
           >
