@@ -220,13 +220,26 @@ export function Web3Provider({ children }) {
 
       console.log('[Web3Context] Sending transaction with:', { characterType, customization });
 
+      // Estimate gas with 20% buffer
+      let gasLimit;
+      try {
+        const gasEstimate = await contracts.character.mintCharacter.estimateGas(characterType, customization);
+        gasLimit = BigInt(Math.floor(Number(gasEstimate) * 1.2));
+        console.log('[Web3Context] Gas estimate:', gasEstimate.toString(), 'Using:', gasLimit.toString());
+      } catch (gasError) {
+        console.warn('[Web3Context] Gas estimation failed, using default:', gasError);
+        gasLimit = BigInt(500000); // Fallback gas limit
+      }
+
       // Call mintCharacter on contract with characterType and customization
-      const tx = await contracts.character.mintCharacter(characterType, customization);
+      const tx = await contracts.character.mintCharacter(characterType, customization, {
+        gasLimit
+      });
       console.log('[Web3Context] Transaction sent:', tx.hash);
 
-      // Wait for transaction confirmation
-      console.log('[Web3Context] Waiting for confirmation...');
-      const receipt = await tx.wait();
+      // Wait for transaction confirmation with timeout
+      console.log('[Web3Context] Waiting for confirmation (this may take 30-60 seconds)...');
+      const receipt = await tx.wait(1); // Wait for 1 confirmation
       console.log('[Web3Context] Transaction confirmed:', receipt);
 
       return {
@@ -242,6 +255,18 @@ export function Web3Provider({ children }) {
         reason: error.reason,
         data: error.data
       });
+      
+      // Provide user-friendly error messages
+      if (error.message?.includes('RPC')) {
+        throw new Error('Network congestion detected. Please wait a moment and try again.');
+      } else if (error.message?.includes('Already owns a character')) {
+        throw new Error('You already own a character NFT! Each wallet can only mint one.');
+      } else if (error.code === 4001 || error.code === 'ACTION_REJECTED') {
+        throw new Error('Transaction cancelled by user');
+      } else if (error.message?.includes('insufficient funds')) {
+        throw new Error('Insufficient MNT balance for gas fees');
+      }
+      
       throw error;
     }
   };
