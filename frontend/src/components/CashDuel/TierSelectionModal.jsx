@@ -140,7 +140,7 @@ export default function TierSelectionModal({ isOpen, onClose, onDuelCreated }) {
 
     try {
       // First, check if there's an existing waiting duel for this tier
-      const checkResponse = await fetch('http://localhost:4000/api/cash-duel/active');
+      const checkResponse = await fetch('https://duelcraft-backend.onrender.com/api/cash-duel/active');
       const checkData = await checkResponse.json();
 
       console.log('[TierModal] Active duels:', checkData.activeDuels);
@@ -179,7 +179,7 @@ export default function TierSelectionModal({ isOpen, onClose, onDuelCreated }) {
       } else {
         // Pre-register our intent BEFORE blockchain transaction for faster matching
         console.log('[TierModal] Pre-registering duel intent...');
-        await fetch('http://localhost:4000/api/cash-duel/register', {
+        await fetch('https://duelcraft-backend.onrender.com/api/cash-duel/register', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ tier: selectedTier.id, address })
@@ -216,7 +216,7 @@ export default function TierSelectionModal({ isOpen, onClose, onDuelCreated }) {
 
       // Call backend to register/join duel
       const endpoint = waitingDuel ? 'join' : 'create';
-      const response = await fetch(`http://localhost:4000/api/cash-duel/${endpoint}`, {
+      const response = await fetch(`https://duelcraft-backend.onrender.com/api/cash-duel/${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

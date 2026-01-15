@@ -14,7 +14,7 @@ export function AuthProvider({ children }) {
   // Fetch profile from backend
   async function fetchProfile(address) {
     try {
-      const res = await fetch(`http://localhost:4000/profile?address=${address}`);
+      const res = await fetch(`https://duelcraft-backend.onrender.com/profile?address=${address}`);
       const data = await res.json();
       if (data?.avatar) {
         setProfile({ avatar: data.avatar });

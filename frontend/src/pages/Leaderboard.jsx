@@ -43,7 +43,7 @@ export default function Leaderboard() {
   useEffect(() => {
     async function loadLeaderboard() {
       try {
-        const res = await fetch("http://localhost:4000/leaderboard?limit=50");
+        const res = await fetch("https://duelcraft-backend.onrender.com/leaderboard?limit=50");
         const data = await res.json();
 
         const leaderboardData = data.leaderboard || data || [];

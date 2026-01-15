@@ -4,7 +4,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 
-const API_BASE = 'http://localhost:4000';
+const API_BASE = 'https://duelcraft-backend.onrender.com';
 
 /**
  * Avatar data format:

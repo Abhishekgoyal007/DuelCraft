@@ -22,7 +22,7 @@ export default function App() {
     async function loadProfile() {
       if (user?.address) {
         try {
-          const res = await fetch(`http://localhost:4000/profile?address=${user.address}`);
+          const res = await fetch(`https://duelcraft-backend.onrender.com/profile?address=${user.address}`);
           const data = await res.json();
           if (data?.avatar) {
             setUserProfile({ avatar: data.avatar });
@@ -46,7 +46,7 @@ export default function App() {
   useEffect(() => {
     if (matchResult && user?.address) {
       // Refetch profile to get updated coin balance
-      fetch(`http://localhost:4000/profile?address=${user.address}`)
+      fetch(`https://duelcraft-backend.onrender.com/profile?address=${user.address}`)
         .then(res => res.json())
         .then(data => {
           if (data?.coins !== undefined) {
@@ -110,9 +110,9 @@ export default function App() {
     if (wsRef.current) return; // already connecting/connected
 
     setStatus("connecting");
-    log("Connecting to ws://localhost:4000/ws ...");
+    log("Connecting to wss://duelcraft-backend.onrender.com/ws ...");
 
-    const socket = new WebSocket("ws://localhost:4000/ws");
+    const socket = new WebSocket("wss://duelcraft-backend.onrender.com/ws");
 
     socket.onopen = () => {
       reconnectRef.current = 0;

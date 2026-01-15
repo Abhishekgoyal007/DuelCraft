@@ -101,7 +101,7 @@ export default function CharacterCreator() {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
 
-        const res = await fetch(`http://localhost:4000/profile?address=${user.address}`, {
+        const res = await fetch(`https://duelcraft-backend.onrender.com/profile?address=${user.address}`, {
           signal: controller.signal
         });
         clearTimeout(timeoutId);
@@ -138,7 +138,7 @@ export default function CharacterCreator() {
     setSaving(true);
     try {
       console.log('[CharacterCreator] Saving character:', selectedCharacter);
-      const res = await fetch(`http://localhost:4000/api/player/${user.address}/select-character`, {
+      const res = await fetch(`https://duelcraft-backend.onrender.com/api/player/${user.address}/select-character`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ characterId: selectedCharacter })

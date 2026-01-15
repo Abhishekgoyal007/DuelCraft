@@ -31,7 +31,7 @@ export default function WaitingScreen({ duelInfo, onCancel, onOpponentJoined }) 
     // Poll for opponent
     const pollInterval = setInterval(async () => {
       try {
-        const response = await fetch(`http://localhost:4000/api/cash-duel/poll/${duelInfo.duelId}`);
+        const response = await fetch(`https://duelcraft-backend.onrender.com/api/cash-duel/poll/${duelInfo.duelId}`);
         const data = await response.json();
 
         if (data.success && data.battleReady) {

@@ -67,7 +67,7 @@ export default function Arena() {
         return;
       }
 
-      const response = await fetch('http://localhost:4000/api/cash-duel/complete', {
+      const response = await fetch('https://duelcraft-backend.onrender.com/api/cash-duel/complete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -137,7 +137,7 @@ export default function Arena() {
     async function loadProfile() {
       if (user?.address) {
         try {
-          const res = await fetch(`http://localhost:4000/profile?address=${user.address}`);
+          const res = await fetch(`https://duelcraft-backend.onrender.com/profile?address=${user.address}`);
           const data = await res.json();
           const profile = {};
           if (data?.avatar) {
@@ -176,7 +176,7 @@ export default function Arena() {
   // Refresh coins after match
   useEffect(() => {
     if (matchResult && user?.address) {
-      fetch(`http://localhost:4000/profile?address=${user.address}`)
+      fetch(`https://duelcraft-backend.onrender.com/profile?address=${user.address}`)
         .then(res => res.json())
         .then(data => {
           if (data?.coins !== undefined) setCoins(data.coins);
@@ -243,7 +243,7 @@ export default function Arena() {
       if (wsRef.current) return;
 
       setStatus("connecting");
-      const socket = new WebSocket("ws://localhost:4000/ws");
+      const socket = new WebSocket("wss://duelcraft-backend.onrender.com/ws");
 
       socket.onopen = () => {
         reconnectRef.current = 0;

@@ -109,7 +109,7 @@ export default function CharacterCreatorV2() {
     async function loadProfile() {
       if (!user?.address) return;
       try {
-        const res = await fetch(`http://localhost:4000/profile?address=${user.address}`);
+        const res = await fetch(`https://duelcraft-backend.onrender.com/profile?address=${user.address}`);
         const data = await res.json();
         if (data?.avatar && typeof data.avatar === "object") {
           setAvatar({ ...DEFAULT_AVATAR, ...data.avatar });
@@ -133,7 +133,7 @@ export default function CharacterCreatorV2() {
     
     setLoading(true);
     try {
-      const res = await fetch("http://localhost:4000/profile", {
+      const res = await fetch("https://duelcraft-backend.onrender.com/profile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ address: user.address, avatar }),
@@ -176,7 +176,7 @@ export default function CharacterCreatorV2() {
     try {
       // First save avatar to backend
       if (user?.address) {
-        await fetch("http://localhost:4000/profile", {
+        await fetch("https://duelcraft-backend.onrender.com/profile", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ address: user.address, avatar }),

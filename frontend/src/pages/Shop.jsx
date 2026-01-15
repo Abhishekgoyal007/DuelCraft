@@ -82,13 +82,13 @@ export default function Shop() {
     async function loadData() {
       if (!user?.address) return;
       try {
-        const profileRes = await fetch(`http://localhost:4000/profile?address=${user.address}`);
+        const profileRes = await fetch(`https://duelcraft-backend.onrender.com/profile?address=${user.address}`);
         const profileData = await profileRes.json();
         setCoins(profileData.coins || 0);
         setOwnedItems(profileData.ownedSkins || []);
         setOwnedAssets(profileData.ownedAssets || []);
 
-        const assetsRes = await fetch("http://localhost:4000/api/assets");
+        const assetsRes = await fetch("https://duelcraft-backend.onrender.com/api/assets");
         const assetsData = await assetsRes.json();
         const purchasableAssets = (assetsData.assets || [])
           .filter(a => a.price > 0 && a.isActive !== false)
@@ -129,7 +129,7 @@ export default function Shop() {
       let res, data;
 
       if (item.isAsset) {
-        res = await fetch("http://localhost:4000/api/assets/buy", {
+        res = await fetch("https://duelcraft-backend.onrender.com/api/assets/buy", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ address: user.address, assetId: item.assetId }),
@@ -143,7 +143,7 @@ export default function Shop() {
           setMessage({ type: "error", text: data.error || "Purchase failed" });
         }
       } else {
-        res = await fetch("http://localhost:4000/shop/purchase", {
+        res = await fetch("https://duelcraft-backend.onrender.com/shop/purchase", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ address: user.address, itemId: item.id, price: item.price }),

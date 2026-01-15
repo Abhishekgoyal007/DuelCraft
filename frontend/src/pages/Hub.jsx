@@ -328,7 +328,7 @@ export default function Hub() {
     const doFetch = async () => {
       if (!user?.address) return;
       try {
-        const res = await fetch(`http://localhost:4000/profile?address=${user.address}`);
+        const res = await fetch(`https://duelcraft-backend.onrender.com/profile?address=${user.address}`);
         const data = await res.json();
         if (data?.avatar) setAvatar(data.avatar);
         if (data?.selectedCharacter) setSelectedCharacter(data.selectedCharacter);
@@ -420,7 +420,7 @@ export default function Hub() {
       // Fetch match history from backend
       if (user?.address) {
         try {
-          const res = await fetch(`http://localhost:4000/matches?address=${user.address}&limit=5`);
+          const res = await fetch(`https://duelcraft-backend.onrender.com/matches?address=${user.address}&limit=5`);
           const data = await res.json();
           if (data?.matches) {
             setMatchHistory(data.matches);
@@ -452,14 +452,14 @@ export default function Hub() {
       const addr = await signer.getAddress();
       setWalletAddress(addr);
 
-      const r1 = await fetch(`http://localhost:4000/auth/nonce?address=${addr}`);
+      const r1 = await fetch(`https://duelcraft-backend.onrender.com/auth/nonce?address=${addr}`);
       const j1 = await r1.json();
       if (!j1.nonce) throw new Error(j1.error || "No nonce returned");
 
       const message = `DuelCraft login: ${j1.nonce}`;
       const signature = await signer.signMessage(message);
 
-      const r2 = await fetch("http://localhost:4000/auth/login", {
+      const r2 = await fetch("https://duelcraft-backend.onrender.com/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ address: addr, signature }),

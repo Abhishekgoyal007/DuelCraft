@@ -48,7 +48,7 @@ export default function ConnectWallet({ onLogin }) {
       setAddress(addr);
 
       // Get nonce
-      const r1 = await fetch(`http://localhost:4000/auth/nonce?address=${addr}`);
+      const r1 = await fetch(`https://duelcraft-backend.onrender.com/auth/nonce?address=${addr}`);
       const j1 = await r1.json();
       if (!j1.nonce) throw new Error(j1.error || "No nonce returned");
 
@@ -58,7 +58,7 @@ export default function ConnectWallet({ onLogin }) {
       const signature = await signer.signMessage(message);
 
       // send to backend for verification
-      const r2 = await fetch("http://localhost:4000/auth/login", {
+      const r2 = await fetch("https://duelcraft-backend.onrender.com/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ address: addr, signature }),
