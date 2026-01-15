@@ -27,6 +27,8 @@ export type PlayerProfile = {
   };
   equipped?: EquippedAssets;
   equippedUrls?: Record<string, string>; // assetId -> url for rendering
+  selectedCharacter?: string; // e.g., 'char_thorin', 'char_ignatius'
+  characterImage?: string;   // URL to character image
 };
 
 export type Client = {
@@ -76,6 +78,9 @@ export type PlayerState = {
   attackEndTime: number;   // when current attack/hurt animation ends
   stunEndTime: number;     // when stun ends (can't act while stunned)
   lastDamageFrom: string | null; // id of last player who dealt damage
+  // Character abilities
+  characterId?: string;    // selected character ID (e.g., 'char_thorin')
+  doubleJumpUsed: boolean; // true if double jump already used (resets on landing)
   // AI data (only for AI players)
   _aiData?: any;
 };
@@ -109,7 +114,7 @@ export class MatchEngine {
   tickIntervalMs = 100; // 10 ticks/sec
   speed = 220; // horizontal speed px/s
   gravity = 900; // px/s^2
-  jumpVel = 360; // initial jump velocity px/s (upwards)
+  jumpVel = 500; // initial jump velocity px/s (upwards) - increased for higher jumps
   friction = 0.85;
 
   constructor(wss: WebSocket.Server) {
@@ -354,9 +359,9 @@ export class MatchEngine {
     const arenaHeight = 1080;
     const groundY = Math.floor(arenaHeight * 0.55); // Ground at 55% height - on the sand arena
 
-    // initial positions (left / right) - 20% and 80% of arena width
-    const leftX = Math.floor(arenaWidth * 0.20);
-    const rightX = Math.floor(arenaWidth * 0.80);
+    // initial positions (left / right) - 30% and 70% of arena width for better visibility
+    const leftX = Math.floor(arenaWidth * 0.30);
+    const rightX = Math.floor(arenaWidth * 0.70);
     const now = Date.now();
 
     const createPlayerState = (x: number, facingRight: boolean): PlayerState => ({
@@ -373,6 +378,7 @@ export class MatchEngine {
       attackEndTime: 0,
       stunEndTime: 0,
       lastDamageFrom: null,
+      doubleJumpUsed: false,
     });
 
     const state = {
@@ -395,6 +401,14 @@ export class MatchEngine {
 
     this.matches.set(id, match);
     console.log(`[matchEngine] match created ${id} between ${a.id} and ${b.id}`);
+
+    // Store character IDs for special abilities (e.g., double jump for Thorin)
+    if (a.profile?.selectedCharacter) {
+      state.players[a.id].characterId = a.profile.selectedCharacter;
+    }
+    if (b.profile?.selectedCharacter) {
+      state.players[b.id].characterId = b.profile.selectedCharacter;
+    }
 
     // Build players info with profiles for client
     const playersInfo: Record<string, { id: string; profile?: any }> = {
@@ -765,10 +779,21 @@ export class MatchEngine {
             ps.vx = targetVx;
           }
 
-          // Jump handling
-          if (inputs.up && ps.grounded) {
-            ps.vy = -this.jumpVel;
-            ps.grounded = false;
+          // Jump handling - with double jump for lightning characters (Thorin)
+          const canDoubleJump = ps.characterId === 'char_thorin';
+
+          if (inputs.up) {
+            if (ps.grounded) {
+              // Normal ground jump
+              ps.vy = -this.jumpVel;
+              ps.grounded = false;
+              ps.doubleJumpUsed = false; // Reset double jump when jumping from ground
+            } else if (canDoubleJump && !ps.doubleJumpUsed) {
+              // Double jump for Thorin while in air
+              ps.vy = -this.jumpVel * 0.85; // Slightly weaker than first jump
+              ps.doubleJumpUsed = true;
+              console.log(`[matchEngine] ⚡ DOUBLE JUMP activated for Thorin!`);
+            }
           }
         }
 

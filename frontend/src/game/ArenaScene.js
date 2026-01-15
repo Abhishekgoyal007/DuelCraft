@@ -38,14 +38,24 @@ export default class ArenaScene extends Phaser.Scene {
     };
 
     // Custom folder mappings for characters with non-standard folder names
-    // Maps internal key -> { folder: actual folder name, animFolder: animation subfolder name pattern }
+    // Maps internal key -> { folder: actual folder name, animations: { animType: config } }
     const customCharacters = {
       'ignatius': {
         folder: 'Ignatius the Inferno',
         animations: {
-          idle: { folder: 'IDLE ANIMATION', frames: 4 }
-          // Add more animations as you create them:
-          // walk: { folder: 'WALK ANIMATION', frames: 6 }
+          idle: { folder: 'IDLE ANIMATION', frames: 4, prefix: 'frame' },
+          walk: { folder: 'WALK ANIMATION', frames: 4, prefix: 'frame' },
+          punch: { folder: 'punch', frames: 4, prefix: 'p' },
+          jump: { folder: 'jump', frames: 3, prefix: 'j' }
+        }
+      },
+      'thorin': {
+        folder: 'Thorin Stormbreaker',
+        animations: {
+          idle: { folder: 'Idle frame', frames: 4, prefix: 'i' },
+          walk: { folder: 'walk', frames: 4, prefix: 'w' },
+          punch: { folder: 'punch', frames: 4, prefix: 'a' },
+          jump: { folder: 'jump', frames: 3, prefix: 'j' }
         }
       }
     };
@@ -68,9 +78,10 @@ export default class ArenaScene extends Phaser.Scene {
       const charConfig = customCharacters[charKey];
       Object.keys(charConfig.animations).forEach(animType => {
         const animConfig = charConfig.animations[animType];
+        const prefix = animConfig.prefix || 'frame';
         for (let i = 1; i <= animConfig.frames; i++) {
           const key = `${charKey}_${animType}_${i}`;
-          const path = `/character-layers/${charConfig.folder}/${animConfig.folder}/frame${i}.png`;
+          const path = `/character-layers/${charConfig.folder}/${animConfig.folder}/${prefix}${i}.png`;
           this.load.image(key, path);
           console.log(`[ArenaScene] Loading custom: ${key} from ${path}`);
         }
@@ -489,8 +500,16 @@ export default class ArenaScene extends Phaser.Scene {
       },
       // Custom characters (like Ignatius) - uses same key pattern as preload
       ignatius: {
-        idle: { frames: 4, frameRate: 6, repeat: -1 }
-        // Add more as you create them: walk, punch, heavy, jump
+        idle: { frames: 4, frameRate: 6, repeat: -1 },
+        walk: { frames: 4, frameRate: 8, repeat: -1 },
+        punch: { frames: 4, frameRate: 12, repeat: 0 },
+        jump: { frames: 3, frameRate: 8, repeat: 0 }
+      },
+      thorin: {
+        idle: { frames: 4, frameRate: 6, repeat: -1 },
+        walk: { frames: 4, frameRate: 8, repeat: -1 },
+        punch: { frames: 4, frameRate: 12, repeat: 0 },
+        jump: { frames: 3, frameRate: 8, repeat: 0 }
       }
     };
 
@@ -569,22 +588,54 @@ export default class ArenaScene extends Phaser.Scene {
     const charTypeMap = {
       'char_warrior': 'warrior',
       'char_mage': 'mage',
-      'char_ignatius': 'ignatius' // Maps to Ignatius the Inferno animations
+      'char_ignatius': 'ignatius',
+      'char_thorin': 'thorin'
     };
 
-    const charType = charTypeMap[characterId] || 'warrior';
-    console.log(`[ArenaScene] Creating animated character: ${charType} for player ${pid} (characterId: ${characterId})`);
+    // Map character IDs to their static image paths (for all characters)
+    const charImageMap = {
+      'char_ignatius': '/character-layers/Ignatius the Inferno/warrior.png',
+      'char_thorin': '/character-layers/Thorin Stormbreaker/warrior.png',
+      'char_shadow': '/character-layers/Shadow Vex/warrior.png',
+      'char_terra': '/character-layers/Terra Stoneheart/warrior.png',
+      'char_zephyr': '/character-layers/Zephyr Windrider/warrior.png',
+      'char_solara': '/character-layers/Solara Dawnbringer/warrior.png',
+      'char_nyx': '/character-layers/Nyx Shadowmancer/warrior.png',
+      'char_crimson': '/character-layers/Crimson Bloodfang/warrior.png',
+      'char_jade': '/character-layers/Jade Serpentine/warrior.png',
+      'char_obsidian': '/character-layers/Obsidian Titan/warrior.png',
+      'char_aurora': '/character-layers/Aurora Frostweaver/warrior.png',
+      'char_phoenix': '/character-layers/Phoenix Ashborne/warrior.png',
+      'char_steel': '/character-layers/Steel Vanguard/warrior.png',
+      'char_kai': '/character-layers/Mystic Kai/warrior.png',
+      'char_ragnar': '/character-layers/Ragnar Wolfclaw/warrior.png',
+      'char_elektra': '/character-layers/Elektra Volthart/warrior.png',
+      'char_draco': '/character-layers/Draco Scaleborn/warrior.png',
+      'char_luna': '/character-layers/Luna Moonshadow/warrior.png',
+      'char_gaia': '/character-layers/Gaia Naturebond/warrior.png',
+      'char_warrior': '/character-layers/warrior/warrior.png'
+    };
 
-    // Check if idle animation exists for this character
-    const idleAnimKey = `${charType}_idle`;
-    if (!this.anims.exists(idleAnimKey)) {
-      console.warn(`[ArenaScene] Animation not found: ${idleAnimKey}, falling back to procedural`);
-      return { type: 'procedural', key: this.createProceduralCharacter(pid, characterId) };
+    const charType = charTypeMap[characterId] || null;
+    console.log(`[ArenaScene] Creating character for ${pid}: ${characterId}, charType: ${charType}`);
+
+    // Check if we have proper animations for this character
+    const idleAnimKey = charType ? `${charType}_idle` : null;
+    if (charType && this.anims.exists(idleAnimKey)) {
+      console.log(`[ArenaScene] ✓ Using animated character: ${charType} with animation: ${idleAnimKey}`);
+      return { type: 'animated', charType: charType };
     }
 
-    console.log(`[ArenaScene] ✓ Using animated character: ${charType} with animation: ${idleAnimKey}`);
-    // Return character type info for sprite creation
-    return { type: 'animated', charType: charType };
+    // Fallback: Use static character image if available
+    const imagePath = charImageMap[characterId];
+    if (imagePath) {
+      console.log(`[ArenaScene] Using static image for ${characterId}: ${imagePath}`);
+      return { type: 'static', imagePath: imagePath, characterId: characterId };
+    }
+
+    // Last resort: procedural character
+    console.warn(`[ArenaScene] No image/animation found for ${characterId}, using procedural`);
+    return { type: 'procedural', key: this.createProceduralCharacter(pid, characterId) };
   }
 
   // Create procedurally drawn character (warrior, mage, rogue, etc.)
@@ -1500,25 +1551,110 @@ export default class ArenaScene extends Phaser.Scene {
 
         let sprite;
         if (charInfo.type === 'animated') {
+          // Character-specific sizes (width, height)
+          const charSizes = {
+            'thorin': { width: 240, height: 180 },
+            'ignatius': { width: 160, height: 160 },
+            'warrior': { width: 128, height: 128 },
+            'mage': { width: 128, height: 128 },
+            'default': { width: 128, height: 128 }
+          };
+          const charSize = charSizes[charInfo.charType] || charSizes['default'];
+
           // Create sprite with first frame of idle animation
           const firstFrameKey = `${charInfo.charType}_idle_1`;
           sprite = this.add.sprite(startX, startY, firstFrameKey);
           sprite.setOrigin(0.5, 1); // Bottom-center anchor
-
-          // Force display size to exactly 64x64 pixels
-          sprite.setDisplaySize(128, 128);
-
-          // CRITICAL: Lock the display size on every animation frame update
-          sprite.on('animationupdate', () => {
-            sprite.setDisplaySize(128, 128);
-          });
-
+          sprite.setDisplaySize(charSize.width, charSize.height);
           sprite.setDepth(200);
           sprite.setFlipX(!(p.facingRight ?? true));
 
+          // Lock size on every animation frame update (prevents flickering)
+          const lockedWidth = charSize.width;
+          const lockedHeight = charSize.height;
+          sprite.on('animationupdate', () => {
+            sprite.setDisplaySize(lockedWidth, lockedHeight);
+          });
+
           // Play idle animation
           sprite.play(`${charInfo.charType}_idle`);
-          console.log(`[ArenaScene] ✓ Character created: ${charInfo.charType}, locked to 64x64px`);
+          console.log(`[ArenaScene] ✓ Animated character created: ${charInfo.charType} at ${charSize.width}x${charSize.height}`);
+
+          this.players[pid] = {
+            sprite,
+            nameLabel: null,
+            avatar,
+            isMyPlayer,
+            isContainer: false,
+            facingRight: p.facingRight ?? true,
+            charType: charInfo.charType,
+            currentAnim: 'idle',
+            isStaticImage: false,
+            charSize: charSize // Store size for later reference
+          };
+        } else if (charInfo.type === 'static') {
+          // Use static character image - load it dynamically
+          const textureKey = `static_char_${pid}_${charInfo.characterId}`;
+
+          // Create a placeholder sprite first
+          sprite = this.add.rectangle(startX, startY - 64, 128, 128, 0x333333);
+          sprite.setDepth(200);
+
+          // Mark as loading
+          this.players[pid] = {
+            sprite,
+            nameLabel: null,
+            avatar,
+            isMyPlayer,
+            isContainer: false,
+            facingRight: p.facingRight ?? true,
+            charType: null,
+            currentAnim: null,
+            isStaticImage: true,
+            loading: true
+          };
+
+          // Load the image
+          if (!this.textures.exists(textureKey)) {
+            this.load.image(textureKey, charInfo.imagePath);
+            this.load.once(`filecomplete-image-${textureKey}`, () => {
+              console.log(`[ArenaScene] ✓ Static image loaded: ${charInfo.imagePath}`);
+
+              // Replace placeholder with actual sprite
+              if (this.players[pid] && this.players[pid].sprite) {
+                const oldSprite = this.players[pid].sprite;
+                const currentX = oldSprite.x;
+                const currentY = oldSprite.y + 64; // Adjust for anchor difference
+                oldSprite.destroy();
+
+                const newSprite = this.add.sprite(currentX, currentY, textureKey);
+                newSprite.setOrigin(0.5, 1); // Bottom-center anchor
+                newSprite.setDisplaySize(128, 128);
+                newSprite.setDepth(200);
+                newSprite.setFlipX(!(this.players[pid].facingRight));
+
+                this.players[pid].sprite = newSprite;
+                this.players[pid].loading = false;
+
+                // Update name label position
+                if (this.players[pid].nameLabel) {
+                  this.players[pid].nameLabel.x = currentX;
+                  this.players[pid].nameLabel.y = currentY - 150;
+                }
+              }
+            });
+            this.load.start();
+          } else {
+            // Texture already loaded
+            sprite.destroy();
+            sprite = this.add.sprite(startX, startY, textureKey);
+            sprite.setOrigin(0.5, 1);
+            sprite.setDisplaySize(128, 128);
+            sprite.setDepth(200);
+            sprite.setFlipX(!(p.facingRight ?? true));
+            this.players[pid].sprite = sprite;
+            this.players[pid].loading = false;
+          }
         } else {
           // Fallback to procedural
           sprite = this.add.sprite(startX, startY, charInfo.key);
@@ -1526,6 +1662,18 @@ export default class ArenaScene extends Phaser.Scene {
           sprite.setDisplaySize(128, 128);
           sprite.setDepth(200);
           sprite.setFlipX(!(p.facingRight ?? true));
+
+          this.players[pid] = {
+            sprite,
+            nameLabel: null,
+            avatar,
+            isMyPlayer,
+            isContainer: false,
+            facingRight: p.facingRight ?? true,
+            charType: null,
+            currentAnim: null,
+            isStaticImage: false
+          };
         }
 
         // Add floating name label
@@ -1536,16 +1684,7 @@ export default class ArenaScene extends Phaser.Scene {
           strokeThickness: 3,
         }).setOrigin(0.5, 0.5).setDepth(300);
 
-        this.players[pid] = {
-          sprite,
-          nameLabel,
-          avatar,
-          isMyPlayer,
-          isContainer: false,
-          facingRight: p.facingRight ?? true,
-          charType: charInfo.type === 'animated' ? charInfo.charType : null,
-          currentAnim: 'idle'
-        };
+        this.players[pid].nameLabel = nameLabel;
       } else {
         // Update existing player
         const player = this.players[pid];
@@ -1715,21 +1854,40 @@ export default class ArenaScene extends Phaser.Scene {
         targetAnim = 'walk';
       }
 
-      const animKey = `${player.charType}_${targetAnim}`;
+      let animKey = `${player.charType}_${targetAnim}`;
 
-      // Only change animation if different from current
-      if (player.currentAnim !== targetAnim && this.anims.exists(animKey)) {
+      // Fallback to warrior animation if character doesn't have this animation
+      if (!this.anims.exists(animKey)) {
+        const fallbackKey = `warrior_${targetAnim}`;
+        if (this.anims.exists(fallbackKey)) {
+          animKey = fallbackKey;
+          console.log(`[ArenaScene] Using warrior fallback for: ${player.charType}_${targetAnim}`);
+        } else {
+          // Last resort: stay on current animation
+          animKey = null;
+        }
+      }
+
+      // Only change animation if different from current and animation exists
+      if (animKey && player.currentAnim !== targetAnim && this.anims.exists(animKey)) {
         player.currentAnim = targetAnim;
         sprite.play(animKey);
-        // Force size lock after animation change
-        sprite.setDisplaySize(128, 128);
         console.log(`[ArenaScene] Playing animation: ${animKey}`);
       }
-    }
 
-    // Ensure size stays locked (safety check every frame)
-    if (player.charType && sprite.displayWidth !== 128) {
-      sprite.setDisplaySize(128, 128);
+      // Character size lookup table (must match the one in sprite creation)
+      const charSizes = {
+        'thorin': { width: 240, height: 180 },
+        'ignatius': { width: 160, height: 160 },
+        'warrior': { width: 128, height: 128 },
+        'mage': { width: 128, height: 128 }
+      };
+
+      // Get stored size or lookup from charType
+      const size = player.charSize || charSizes[player.charType] || { width: 128, height: 128 };
+
+      // ALWAYS enforce size every frame to prevent any flickering
+      sprite.setDisplaySize(size.width, size.height);
     }
 
     // Tint based on attack state with better colors

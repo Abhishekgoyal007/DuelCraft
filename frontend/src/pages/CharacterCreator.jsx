@@ -92,10 +92,20 @@ export default function CharacterCreator() {
   // Load player's selected character on mount
   useEffect(() => {
     async function loadCharacter() {
-      if (!user?.address) return;
+      if (!user?.address) {
+        setLoading(false);
+        return;
+      }
       setLoading(true);
       try {
-        const res = await fetch(`http://localhost:4000/profile?address=${user.address}`);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
+
+        const res = await fetch(`http://localhost:4000/profile?address=${user.address}`, {
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+
         const data = await res.json();
         if (data?.selectedCharacter) {
           setSelectedCharacter(data.selectedCharacter);
@@ -243,7 +253,7 @@ export default function CharacterCreator() {
     ? PREMADE_CHARACTERS
     : PREMADE_CHARACTERS.filter(c => c.element === filterElement);
 
-  if (loading) {
+  if (loading && user?.address) {
     return (
       <div className="min-h-screen flex flex-col" style={{ background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)' }}>
         <div className="flex-1 flex items-center justify-center">
@@ -272,25 +282,18 @@ export default function CharacterCreator() {
               <div className="sticky top-4 bg-gradient-to-b from-gray-800/90 to-gray-900/90 backdrop-blur-sm border border-amber-500/30 rounded-2xl p-4 shadow-2xl">
                 <h3 className="text-center font-bold text-amber-400 mb-4 text-sm uppercase tracking-wider">Selected Hero</h3>
 
-                {/* Character Image - Now Animated! */}
+                {/* Character Image - Static Only */}
                 <div className={`relative mx-auto w-full aspect-square rounded-xl overflow-hidden mb-4 bg-gradient-to-br ${ELEMENT_COLORS[selectedCharData.element] || ELEMENT_COLORS.neutral}`}>
                   <div className="absolute inset-0 bg-black/30"></div>
-                  {selectedCharData.animations ? (
-                    // Use animated preview for characters with animation frames
-                    <AnimatedCharacterPreview
-                      character={selectedCharData}
-                      animation="idle"
-                      className="relative z-10"
-                    />
-                  ) : selectedCharData.image ? (
-                    // Static image for characters without animations
+                  {selectedCharData.image ? (
+                    // Static image for all characters
                     <img
                       src={selectedCharData.image}
                       alt={selectedCharData.name}
                       className="w-full h-full object-contain relative z-10"
                       style={{
                         imageRendering: 'pixelated',
-                        transform: `scale(${selectedCharData.displayScale || 1.6}) translateX(${selectedCharData.displayOffsetX || 0}%)`
+                        transform: `scale(${selectedCharData.displayScale || 1.2})`
                       }}
                     />
                   ) : (
@@ -300,12 +303,6 @@ export default function CharacterCreator() {
                   <div className="absolute top-2 right-2 bg-black/60 px-2 py-1 rounded-full text-xs text-white capitalize z-20">
                     {selectedCharData.element}
                   </div>
-                  {/* Animation Badge for animated characters */}
-                  {selectedCharData.animations && (
-                    <div className="absolute top-2 left-2 bg-amber-500/80 px-2 py-1 rounded-full text-xs text-black font-bold z-20 animate-pulse">
-                      ✨ ANIMATED
-                    </div>
-                  )}
                 </div>
 
                 {/* Character Info */}

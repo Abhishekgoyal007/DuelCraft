@@ -260,9 +260,9 @@ export default function Marketplace() {
                       key={listing.id}
                       className="relative rounded-2xl p-6 transition-all duration-300 hover:scale-105 hover:-translate-y-2 overflow-hidden group"
                       style={{
-                        background: "linear-gradient(145deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 100%)",
-                        border: `2px solid ${rarity.color}50`,
-                        backdropFilter: "blur(20px)",
+                        background: "linear-gradient(145deg, rgba(15,30,54,0.95) 0%, rgba(26,15,46,0.92) 100%)",
+                        border: `2px solid ${rarity.color}60`,
+                        boxShadow: `0 8px 32px rgba(0,0,0,0.5)`,
                         animationDelay: `${idx * 100}ms`
                       }}
                     >
@@ -324,7 +324,7 @@ export default function Marketplace() {
 
         {/* My Listings Tab */}
         {activeTab === "my-listings" && (
-          <div className="rounded-2xl p-8 border-2 border-white/10" style={{ background: "linear-gradient(145deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%)", backdropFilter: "blur(20px)" }}>
+          <div className="rounded-2xl p-8 border-2 border-cyan-500/30" style={{ background: "linear-gradient(145deg, rgba(15,30,54,0.95) 0%, rgba(26,15,46,0.92) 100%)" }}>
             {myListings.length === 0 ? (
               <div className="text-center py-12">
                 <div className="text-6xl mb-4">📭</div>

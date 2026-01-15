@@ -33,27 +33,7 @@ export const CHARACTERS = {
     }
   },
 
-  // 2. Ice Warrior
-  char_glacius: {
-    id: 'char_glacius',
-    name: 'Glacius Frostbane',
-    icon: '❄️',
-    image: '/character-layers/Glacius Frostbane/warrior.png',
-    description: 'Ice Warrior - Control & freeze enemies',
-    color: '#00bfff',
-    element: 'ice',
-    displayScale: 1.2,
-    displayOffsetX: -8, // Shift left to show axe
-    stats: {
-      health: 110,
-      attack: 70,
-      defense: 85,
-      speed: 45
-    },
-    superpower: 'Glacier Prison - Freezes enemy for 3 seconds'
-  },
-
-  // 3. Thunder Champion
+  // 2. Thunder Champion
   char_thorin: {
     id: 'char_thorin',
     name: 'Thorin Stormbreaker',

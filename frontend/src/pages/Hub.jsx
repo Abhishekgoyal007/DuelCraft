@@ -168,14 +168,13 @@ function FighterPreview({ selectedCharacter, hasNFT, nftTokenId, checkingNFT, bl
           <div
             className="w-full aspect-square rounded-xl flex items-center justify-center shadow-lg relative overflow-hidden bg-gradient-to-br from-slate-700 to-slate-800 border border-slate-600/50"
           >
-            {/* Character Image - Big and scaled */}
+            {/* Character Image - Properly sized */}
             <img
               src={getCharacterImage(selectedCharacter)}
               alt={getCharacterName(selectedCharacter)}
-              className="w-full h-full object-contain"
+              className="w-full h-full object-contain p-2"
               style={{
                 imageRendering: 'pixelated',
-                transform: 'scale(1.8)',
                 filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.5))'
               }}
             />
@@ -376,27 +375,43 @@ export default function Hub() {
         const provider = new ethers.JsonRpcProvider('https://rpc.sepolia.mantle.xyz');
         const contractAddresses = getContractAddresses(5003);
 
+        let totalNFTs = 0;
+        let totalDuels = 0;
+        let prizePool = '0';
+
         // Get total NFTs minted
-        const characterContract = new ethers.Contract(
-          contractAddresses.DuelCraftCharacter,
-          DuelCraftCharacterABI,
-          provider
-        );
-        const totalNFTs = await characterContract.totalSupply();
+        try {
+          const characterContract = new ethers.Contract(
+            contractAddresses.DuelCraftCharacter,
+            DuelCraftCharacterABI,
+            provider
+          );
+          totalNFTs = Number(await characterContract.totalSupply());
+        } catch (err) {
+          console.warn("Error fetching NFT count:", err.message);
+        }
 
         // Get Cash Duel stats
-        const cashDuelContract = new ethers.Contract(
-          contractAddresses.CashDuel,
-          CashDuelABI,
-          provider
-        );
-        const totalDuels = await cashDuelContract.totalDuels();
-        const contractBalance = await provider.getBalance(contractAddresses.CashDuel);
+        try {
+          const cashDuelContract = new ethers.Contract(
+            contractAddresses.CashDuel,
+            CashDuelABI,
+            provider
+          );
+          // Use getActiveDuels().length instead of totalDuels (which doesn't exist)
+          const activeDuels = await cashDuelContract.getActiveDuels();
+          totalDuels = activeDuels.length;
+
+          const contractBalance = await provider.getBalance(contractAddresses.CashDuel);
+          prizePool = ethers.formatEther(contractBalance);
+        } catch (err) {
+          console.warn("Error fetching Cash Duel stats:", err.message);
+        }
 
         setBlockchainStats({
-          totalNFTs: Number(totalNFTs),
-          totalDuels: Number(totalDuels),
-          prizePool: ethers.formatEther(contractBalance)
+          totalNFTs,
+          totalDuels,
+          prizePool
         });
       } catch (err) {
         console.warn("Error fetching blockchain stats:", err);

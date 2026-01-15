@@ -743,22 +743,32 @@ h6 {
 
 /* ===== SCROLLBAR STYLES ===== */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 12px;
+  height: 12px;
 }
 
 ::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: 6px;
+  border: 2px solid rgba(255, 215, 0, 0.1);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, var(--color-primary) 0%, var(--color-accent) 100%);
-  border-radius: 4px;
+  background: linear-gradient(180deg, #FFD700 0%, #FFA500 50%, #FF8C00 100%);
+  border-radius: 6px;
+  border: 2px solid rgba(0, 0, 0, 0.3);
+  box-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, var(--color-primary-light) 0%, var(--color-accent-light) 100%);
+  background: linear-gradient(180deg, #FFE44D 0%, #FFB733 50%, #FF9F00 100%);
+  box-shadow: 0 0 15px rgba(255, 215, 0, 0.5);
+}
+
+/* Firefox scrollbar */
+* {
+  scrollbar-width: auto;
+  scrollbar-color: #FFD700 rgba(0, 0, 0, 0.4);
 }
 
 /* ===== LOADING SKELETON ===== */

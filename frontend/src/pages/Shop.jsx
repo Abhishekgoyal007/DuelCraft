@@ -276,9 +276,9 @@ export default function Shop() {
                   key={item.id}
                   className={`relative rounded-2xl p-5 transition-all duration-300 hover:scale-105 hover:-translate-y-2 overflow-hidden group ${owned ? "ring-4 ring-green-500" : ""}`}
                   style={{
-                    background: "linear-gradient(145deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 100%)",
-                    border: `2px solid ${rarityConfig.color}40`,
-                    boxShadow: `0 8px 32px rgba(0,0,0,0.3), 0 0 20px ${rarityConfig.glow}`,
+                    background: "linear-gradient(145deg, rgba(15,23,42,0.95) 0%, rgba(30,41,59,0.90) 100%)",
+                    border: `2px solid ${rarityConfig.color}60`,
+                    boxShadow: `0 8px 32px rgba(0,0,0,0.5), 0 0 20px ${rarityConfig.glow}`,
                     animationDelay: `${idx * 50}ms`
                   }}
                 >
